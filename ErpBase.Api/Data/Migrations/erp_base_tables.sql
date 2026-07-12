@@ -383,3 +383,9 @@ VALUES ('20260707235508_AddCloudinaryStorageFields', '10.0.9');
 
 COMMIT;
 
+START TRANSACTION;
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260712221045_ApiManagedDatabase', '10.0.9');
+
+COMMIT;
+

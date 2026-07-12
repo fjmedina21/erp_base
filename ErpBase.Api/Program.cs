@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Microsoft.IdentityModel.Tokens;
 
+LoadLocalEnvironment();
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
@@ -94,6 +96,12 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -112,3 +120,62 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static void LoadLocalEnvironment()
+{
+    var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+    if (!string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) &&
+        !string.IsNullOrWhiteSpace(environment))
+    {
+        return;
+    }
+
+    var envPath = FindFileUpwards(Directory.GetCurrentDirectory(), ".env");
+    if (envPath is not null)
+    {
+        foreach (var line in File.ReadAllLines(envPath))
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#')) continue;
+
+            var separatorIndex = trimmed.IndexOf('=');
+            if (separatorIndex <= 0) continue;
+
+            var key = trimmed[..separatorIndex].Trim();
+            var value = trimmed[(separatorIndex + 1)..].Trim().Trim('"');
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
+            {
+                Environment.SetEnvironmentVariable(key, value);
+            }
+        }
+    }
+
+    SetIfMissing("Cloudinary__CloudName", "CLOUDINARY_CLOUD_NAME");
+    SetIfMissing("Cloudinary__ApiKey", "CLOUDINARY_API_KEY");
+    SetIfMissing("Cloudinary__ApiSecret", "CLOUDINARY_API_SECRET");
+    SetIfMissing("Cloudinary__Folder", "CLOUDINARY_FOLDER");
+}
+
+static string? FindFileUpwards(string startDirectory, string fileName)
+{
+    var directory = new DirectoryInfo(startDirectory);
+    while (directory is not null)
+    {
+        var candidate = Path.Combine(directory.FullName, fileName);
+        if (File.Exists(candidate)) return candidate;
+        directory = directory.Parent;
+    }
+
+    return null;
+}
+
+static void SetIfMissing(string targetKey, string sourceKey)
+{
+    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(targetKey))) return;
+
+    var sourceValue = Environment.GetEnvironmentVariable(sourceKey);
+    if (!string.IsNullOrWhiteSpace(sourceValue))
+    {
+        Environment.SetEnvironmentVariable(targetKey, sourceValue);
+    }
+}
