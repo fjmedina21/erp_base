@@ -180,10 +180,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
             entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Codigo).HasColumnName("codigo").HasMaxLength(20);
             entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
             entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
             entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
             entity.HasIndex(x => x.Nombre).IsUnique();
+            entity.HasIndex(x => x.Codigo).IsUnique();
         });
 
         modelBuilder.Entity<EstadoPropiedad>(entity =>

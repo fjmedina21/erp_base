@@ -1,6 +1,6 @@
 namespace ErpBase.Api.Entities;
 
-public sealed class EstadoContrato
+public sealed class EstadoContrato : INamedCatalog
 {
     public Guid Id { get; set; }
     public string Nombre { get; set; } = string.Empty;

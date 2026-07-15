@@ -2,7 +2,8 @@ namespace ErpBase.Api.DTOs.Catalogos;
 
 public sealed record CatalogoItemResponse(
     Guid Id,
-    string Nombre);
+    string Nombre,
+    string? Codigo = null);
 
 public sealed record TipoDocumentoIdentidadResponse(
     Guid Id,

@@ -693,31 +693,6 @@ namespace ErpBase.Api.Data.Migrations
                 column: "email",
                 unique: true);
 
-            migrationBuilder.Sql("""
-                INSERT INTO crm.tipos_cliente(nombre)
-                VALUES ('Persona'), ('Empresa')
-                ON CONFLICT (nombre) DO NOTHING;
-
-                INSERT INTO crm.tipos_documento_identidad(nombre, regex_validacion)
-                VALUES ('Cedula', '^\d{11}$'), ('RNC', '^\d{9}$'), ('Pasaporte', '^[A-Z0-9]{6,20}$')
-                ON CONFLICT (nombre) DO NOTHING;
-
-                INSERT INTO propiedades.tipos_propiedad(nombre)
-                VALUES ('Apartamento'), ('Casa'), ('Solar'), ('Local Comercial'), ('Oficina')
-                ON CONFLICT (nombre) DO NOTHING;
-
-                INSERT INTO propiedades.estados_propiedad(nombre)
-                VALUES ('Disponible'), ('Reservada'), ('Vendida'), ('Alquilada')
-                ON CONFLICT (nombre) DO NOTHING;
-
-                INSERT INTO contratos.tipos_contrato(nombre)
-                VALUES ('Venta'), ('Alquiler'), ('Arrendamiento')
-                ON CONFLICT (nombre) DO NOTHING;
-
-                INSERT INTO contratos.estados_contrato(nombre)
-                VALUES ('Activo'), ('Vencido'), ('Cancelado')
-                ON CONFLICT (nombre) DO NOTHING;
-                """);
         }
 
         /// <inheritdoc />

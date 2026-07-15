@@ -2,15 +2,28 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ErpBase.Api.DTOs.Contratos;
 
-public sealed record CreateContratoRequest(
-    [Required] Guid ClienteId,
-    [Required] Guid PropiedadId,
-    [Required] Guid TipoContratoId,
-    Guid? EstadoContratoId,
-    DateOnly FechaInicio,
-    DateOnly? FechaFin,
-    [Required, MaxLength(1000)] string RutaArchivo,
-    string? Observaciones);
+public sealed class CreateContratoRequest
+{
+    [Required]
+    public Guid ClienteId { get; set; }
+
+    [Required]
+    public Guid PropiedadId { get; set; }
+
+    [Required]
+    public Guid TipoContratoId { get; set; }
+
+    public Guid? EstadoContratoId { get; set; }
+
+    public DateOnly FechaInicio { get; set; }
+
+    public DateOnly? FechaFin { get; set; }
+
+    [Required]
+    public IFormFile Archivo { get; set; } = null!;
+
+    public string? Observaciones { get; set; }
+}
 
 public sealed record ContratoResponse(
     Guid Id,

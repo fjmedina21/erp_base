@@ -25,7 +25,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
             .AsNoTracking()
             .Where(x => x.DeletedAt == null)
             .OrderBy(x => x.Nombre)
-            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre, x.Codigo))
             .ToArrayAsync(cancellationToken));
     }
 
@@ -43,20 +43,24 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     [HttpPost]
     public async Task<ActionResult<PropiedadResponse>> Create(CreatePropiedadRequest request, CancellationToken cancellationToken)
     {
-        var validation = await ValidateReferences(request.TipoPropiedadId, request.EstadoPropiedadId, cancellationToken);
-        if (validation is not null) return BadRequest(new { message = validation });
+        var tipoPropiedad = await dbContext.TiposPropiedad.FirstOrDefaultAsync(x => x.Id == request.TipoPropiedadId && x.DeletedAt == null, cancellationToken);
+        if (tipoPropiedad is null) return BadRequest(new { message = "El tipo de propiedad no existe." });
+        if (string.IsNullOrWhiteSpace(tipoPropiedad.Codigo)) return BadRequest(new { message = "El tipo de propiedad no tiene código configurado." });
+
+        var estadoPropiedad = await FindEstadoDisponible(cancellationToken);
+        if (estadoPropiedad is null) return BadRequest(new { message = "No existe el estado de propiedad Disponible." });
+
         var propertyValidation = ValidatePropertyValues(request.Latitud, request.Longitud, request.MetrosCuadradosTerreno, request.MetrosCuadradosConstruccion, request.Habitaciones, request.Banos, request.PrecioVenta, request.PrecioAlquiler);
         if (propertyValidation is not null) return BadRequest(new { message = propertyValidation });
 
-        var exists = await dbContext.Propiedades.AnyAsync(x => x.Codigo == request.Codigo.Trim() && x.DeletedAt == null, cancellationToken);
-        if (exists) return Conflict(new { message = "Ya existe una propiedad con este código." });
+        var codigo = await GenerateCodigoPropiedad(tipoPropiedad.Codigo, cancellationToken);
 
         var propiedad = new Propiedad
         {
             Id = Guid.NewGuid(),
-            Codigo = request.Codigo.Trim().ToUpperInvariant(),
+            Codigo = codigo,
             TipoPropiedadId = request.TipoPropiedadId,
-            EstadoPropiedadId = request.EstadoPropiedadId,
+            EstadoPropiedadId = estadoPropiedad.Id,
             Titulo = request.Titulo.Trim(),
             Descripcion = request.Descripcion,
             Latitud = request.Latitud,
@@ -401,6 +405,41 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
         return null;
     }
 
+    private async Task<string> GenerateCodigoPropiedad(string tipoPropiedadCodigo, CancellationToken cancellationToken)
+    {
+        var prefix = tipoPropiedadCodigo.Trim().ToUpperInvariant();
+        var year = DateTime.Today.Year;
+        var codePrefix = $"{prefix}-{year}-";
+
+        var existingCodes = await dbContext.Propiedades
+            .AsNoTracking()
+            .Where(x => x.Codigo.StartsWith(codePrefix))
+            .Select(x => x.Codigo)
+            .ToArrayAsync(cancellationToken);
+
+        var next = existingCodes
+            .Select(x => TryGetConsecutivo(x, codePrefix))
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+
+        return $"{codePrefix}{next:0000}";
+    }
+
+    private async Task<EstadoPropiedad?> FindEstadoDisponible(CancellationToken cancellationToken)
+    {
+        return await dbContext.EstadosPropiedad
+            .FirstOrDefaultAsync(x => x.Nombre.ToLower() == "disponible" && x.DeletedAt == null, cancellationToken);
+    }
+
+    private static int? TryGetConsecutivo(string codigo, string codePrefix)
+    {
+        if (!codigo.StartsWith(codePrefix, StringComparison.OrdinalIgnoreCase)) return null;
+        var suffix = codigo[codePrefix.Length..];
+        return int.TryParse(suffix, out var consecutivo) ? consecutivo : null;
+    }
+
     private static string? ValidatePropertyValues(decimal latitud, decimal longitud, decimal metrosTerreno, decimal? metrosConstruccion, int? habitaciones, int? banos, decimal? precioVenta, decimal? precioAlquiler)
     {
         if (latitud is < -90 or > 90) return "La latitud debe estar entre -90 y 90.";
@@ -409,10 +448,10 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
         if (banos.HasValue && banos.Value < 0) return "Los banos no pueden ser negativos.";
         if (precioVenta.HasValue && precioVenta.Value < 0) return "El precio de venta no puede ser negativo.";
         if (precioAlquiler.HasValue && precioAlquiler.Value < 0) return "El precio de alquiler no puede ser negativo.";
-        if (metrosTerreno <= 0) return "Los metros cuadrados del terreno deben ser mayores que cero.";
-        if (metrosConstruccion.HasValue && (metrosConstruccion.Value <= 0 || metrosConstruccion.Value > metrosTerreno))
+        if (metrosTerreno < 0) return "Los metros cuadrados del terreno deben ser mayores o igual que cero.";
+        if (metrosConstruccion.HasValue && metrosConstruccion.Value <= 0)
         {
-            return "Los metros cuadrados de construccion deben ser mayores que cero y no exceder el terreno.";
+            return "Los metros cuadrados de construccion deben ser mayores que cero.";
         }
 
         return null;

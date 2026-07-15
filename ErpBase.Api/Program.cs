@@ -154,6 +154,8 @@ static void LoadLocalEnvironment()
     SetIfMissing("Cloudinary__ApiKey", "CLOUDINARY_API_KEY");
     SetIfMissing("Cloudinary__ApiSecret", "CLOUDINARY_API_SECRET");
     SetIfMissing("Cloudinary__Folder", "CLOUDINARY_FOLDER");
+    SetIfMissing("Seed__AdminEmail", "SEED_ADMIN_EMAIL");
+    SetIfMissing("Seed__AdminPassword", "SEED_ADMIN_PASSWORD");
 }
 
 static string? FindFileUpwards(string startDirectory, string fileName)

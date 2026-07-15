@@ -4,9 +4,7 @@ using Microsoft.AspNetCore.Http;
 namespace ErpBase.Api.DTOs.Propiedades;
 
 public sealed record CreatePropiedadRequest(
-    [Required, MaxLength(50)] string Codigo,
     [Required] Guid TipoPropiedadId,
-    [Required] Guid EstadoPropiedadId,
     [Required, MaxLength(255)] string Titulo,
     string? Descripcion,
     decimal Latitud,

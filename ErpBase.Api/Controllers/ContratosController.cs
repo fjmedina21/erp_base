@@ -3,6 +3,7 @@ using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Contratos;
 using ErpBase.Api.Entities;
+using ErpBase.Api.Services.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,7 @@ namespace ErpBase.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/contratos")]
-public sealed class ContratosController(AppDbContext dbContext) : ControllerBase
+public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStorageService storageService) : ControllerBase
 {
     [HttpGet("tipos")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetTiposContrato(CancellationToken cancellationToken)
@@ -37,9 +38,10 @@ public sealed class ContratosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ContratoResponse>> Create(CreateContratoRequest request, CancellationToken cancellationToken)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ContratoResponse>> Create([FromForm] CreateContratoRequest request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.RutaArchivo)) return BadRequest(new { message = "La ruta del archivo del contrato es requerida." });
+        if (request.Archivo is null || request.Archivo.Length == 0) return BadRequest(new { message = "El archivo del contrato es requerido." });
         if (!await dbContext.Clientes.AnyAsync(x => x.Id == request.ClienteId && x.DeletedAt == null, cancellationToken)) return BadRequest(new { message = "El cliente no existe." });
         if (!await dbContext.Propiedades.AnyAsync(x => x.Id == request.PropiedadId && x.DeletedAt == null, cancellationToken)) return BadRequest(new { message = "La propiedad no existe." });
         if (request.FechaFin.HasValue && request.FechaFin.Value < request.FechaInicio) return BadRequest(new { message = "La fecha fin debe ser mayor o igual a la fecha inicio." });
@@ -56,9 +58,20 @@ public sealed class ContratosController(AppDbContext dbContext) : ControllerBase
         var activeDuplicate = await dbContext.Contratos.AnyAsync(x => x.PropiedadId == request.PropiedadId && x.EstadoContratoId == estado.Id && x.DeletedAt == null, cancellationToken);
         if (activeDuplicate) return Conflict(new { message = "Ya existe un contrato activo para esta propiedad." });
 
+        var contratoId = Guid.NewGuid();
+        CloudinaryUploadResult upload;
+        try
+        {
+            upload = await storageService.UploadAsync(request.Archivo, $"contratos/{contratoId}", CloudinaryResourceType.Raw, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Problem(title: "No se pudo subir el contrato a Cloudinary.", detail: ex.Message, statusCode: StatusCodes.Status500InternalServerError);
+        }
+
         var contrato = new Contrato
         {
-            Id = Guid.NewGuid(),
+            Id = contratoId,
             Codigo = $"CTR-{DateTime.UtcNow:yyyyMMddHHmmssfff}",
             ClienteId = request.ClienteId,
             PropiedadId = request.PropiedadId,
@@ -66,7 +79,7 @@ public sealed class ContratosController(AppDbContext dbContext) : ControllerBase
             EstadoContratoId = estado.Id,
             FechaInicio = request.FechaInicio,
             FechaFin = request.FechaFin,
-            RutaArchivo = request.RutaArchivo.Trim(),
+            RutaArchivo = upload.Url,
             Observaciones = request.Observaciones
         };
 

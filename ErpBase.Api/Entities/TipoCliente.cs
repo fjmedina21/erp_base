@@ -1,6 +1,6 @@
 namespace ErpBase.Api.Entities;
 
-public sealed class TipoCliente
+public sealed class TipoCliente : INamedCatalog
 {
     public Guid Id { get; set; }
     public string Nombre { get; set; } = string.Empty;

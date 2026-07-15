@@ -340,30 +340,6 @@ CREATE INDEX "IX_usuario_roles_rol_id" ON seguridad.usuario_roles (rol_id);
 
 CREATE UNIQUE INDEX "IX_usuarios_email" ON seguridad.usuarios (email);
 
-INSERT INTO crm.tipos_cliente(nombre)
-VALUES ('Persona'), ('Empresa')
-ON CONFLICT (nombre) DO NOTHING;
-
-INSERT INTO crm.tipos_documento_identidad(nombre, regex_validacion)
-VALUES ('Cedula', '^\d{11}$'), ('RNC', '^\d{9}$'), ('Pasaporte', '^[A-Z0-9]{6,20}$')
-ON CONFLICT (nombre) DO NOTHING;
-
-INSERT INTO propiedades.tipos_propiedad(nombre)
-VALUES ('Apartamento'), ('Casa'), ('Solar'), ('Local Comercial'), ('Oficina')
-ON CONFLICT (nombre) DO NOTHING;
-
-INSERT INTO propiedades.estados_propiedad(nombre)
-VALUES ('Disponible'), ('Reservada'), ('Vendida'), ('Alquilada')
-ON CONFLICT (nombre) DO NOTHING;
-
-INSERT INTO contratos.tipos_contrato(nombre)
-VALUES ('Venta'), ('Alquiler'), ('Arrendamiento')
-ON CONFLICT (nombre) DO NOTHING;
-
-INSERT INTO contratos.estados_contrato(nombre)
-VALUES ('Activo'), ('Vencido'), ('Cancelado')
-ON CONFLICT (nombre) DO NOTHING;
-
 INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260707220853_InitialSchema', '10.0.9');
 
@@ -389,3 +365,23 @@ VALUES ('20260712221045_ApiManagedDatabase', '10.0.9');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE propiedades.tipos_propiedad ADD codigo character varying(20);
+
+UPDATE propiedades.tipos_propiedad
+SET codigo = CASE nombre
+    WHEN 'Apartamento' THEN 'APT'
+    WHEN 'Casa' THEN 'CAS'
+    WHEN 'Solar' THEN 'SOL'
+    WHEN 'Local Comercial' THEN 'LOC'
+    WHEN 'Oficina' THEN 'OFI'
+    ELSE codigo
+END
+WHERE nombre IN ('Apartamento', 'Casa', 'Solar', 'Local Comercial', 'Oficina');
+
+CREATE UNIQUE INDEX "IX_tipos_propiedad_codigo" ON propiedades.tipos_propiedad (codigo);
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260715014543_AddCodigoTipoPropiedad', '10.0.9');
+
+COMMIT;
