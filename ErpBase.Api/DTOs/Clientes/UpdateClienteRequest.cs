@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations;
 namespace ErpBase.Api.DTOs.Clientes;
 
 public sealed record UpdateClienteRequest(
-    [MaxLength(50)] string? TipoCliente,
-    [MaxLength(20)] string? TipoDocumento,
+    Guid? TipoClienteId,
+    Guid? TipoDocumentoIdentidadId,
     [MaxLength(20)] string? Documento,
     [MaxLength(150)] string? Nombres,
     [MaxLength(150)] string? Apellidos,

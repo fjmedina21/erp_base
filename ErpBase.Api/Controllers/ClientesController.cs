@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ErpBase.Api.Data;
+using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Clientes;
 using ErpBase.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -13,16 +14,38 @@ namespace ErpBase.Api.Controllers;
 [Route("api/clientes")]
 public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
 {
+    [HttpGet("tipos")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetTiposCliente(CancellationToken cancellationToken)
+    {
+        return Ok(await dbContext.TiposCliente
+            .AsNoTracking()
+            .Where(x => x.DeletedAt == null)
+            .OrderBy(x => x.Nombre)
+            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .ToArrayAsync(cancellationToken));
+    }
+
+    [HttpGet("tipos-documento-identidad")]
+    public async Task<ActionResult<IReadOnlyCollection<TipoDocumentoIdentidadResponse>>> GetTiposDocumentoIdentidad(CancellationToken cancellationToken)
+    {
+        return Ok(await dbContext.TiposDocumentoIdentidad
+            .AsNoTracking()
+            .Where(x => x.DeletedAt == null)
+            .OrderBy(x => x.Nombre)
+            .Select(x => new TipoDocumentoIdentidadResponse(x.Id, x.Nombre, x.RegexValidacion))
+            .ToArrayAsync(cancellationToken));
+    }
+
     [HttpPost]
     public async Task<ActionResult<ClienteResponse>> Create(CreateClienteRequest request, CancellationToken cancellationToken)
     {
-        var tipoCliente = await FindTipoCliente(request.TipoCliente, cancellationToken);
+        var tipoCliente = await FindTipoCliente(request.TipoClienteId, cancellationToken);
         if (tipoCliente is null)
         {
             return BadRequest(new { message = "El tipo de cliente no existe en crm.tipos_cliente." });
         }
 
-        var tipoDocumento = await FindTipoDocumento(request.TipoDocumento, cancellationToken);
+        var tipoDocumento = await FindTipoDocumento(request.TipoDocumentoIdentidadId, cancellationToken);
         if (tipoDocumento is null)
         {
             return BadRequest(new { message = "El tipo de documento no existe en crm.tipos_documento_identidad." });
@@ -92,18 +115,18 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
             return NotFound();
         }
 
-        var tipoCliente = request.TipoCliente is null
+        var tipoCliente = request.TipoClienteId is null
             ? cliente.TipoCliente
-            : await FindTipoCliente(request.TipoCliente, cancellationToken);
+            : await FindTipoCliente(request.TipoClienteId.Value, cancellationToken);
 
         if (tipoCliente is null)
         {
             return BadRequest(new { message = "El tipo de cliente no existe en crm.tipos_cliente." });
         }
 
-        var tipoDocumento = request.TipoDocumento is null
+        var tipoDocumento = request.TipoDocumentoIdentidadId is null
             ? cliente.TipoDocumentoIdentidad
-            : await FindTipoDocumento(request.TipoDocumento, cancellationToken);
+            : await FindTipoDocumento(request.TipoDocumentoIdentidadId.Value, cancellationToken);
 
         if (tipoDocumento is null)
         {
@@ -157,7 +180,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? nombre,
         [FromQuery] string? documento,
-        [FromQuery] string? tipoCliente,
+        [FromQuery] Guid? tipoClienteId,
         [FromQuery] string? orderBy,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -197,9 +220,9 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
             query = query.Where(x => x.DocumentoIdentidad.Contains(normalizedDocumento));
         }
 
-        if (!string.IsNullOrWhiteSpace(tipoCliente))
+        if (tipoClienteId.HasValue)
         {
-            var tipoClienteCatalogo = await FindTipoCliente(tipoCliente, cancellationToken);
+            var tipoClienteCatalogo = await FindTipoCliente(tipoClienteId.Value, cancellationToken);
             if (tipoClienteCatalogo is null)
             {
                 return Ok(new ClienteSearchResponse([], page, pageSize, 0));
@@ -300,31 +323,16 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
             cancellationToken);
     }
 
-    private async Task<TipoCliente?> FindTipoCliente(string nombre, CancellationToken cancellationToken)
+    private async Task<TipoCliente?> FindTipoCliente(Guid id, CancellationToken cancellationToken)
     {
-        var normalized = NormalizeCatalogName(nombre);
-        var aliases = normalized switch
-        {
-            "PERSONAFISICA" or "FISICA" => new[] { "PERSONAFISICA", "PERSONA" },
-            "PERSONAJURIDICA" or "JURIDICA" or "EMPRESA" => new[] { "PERSONAJURIDICA", "EMPRESA" },
-            _ => new[] { normalized }
-        };
-
-        var tiposCliente = await dbContext.TiposCliente
-            .Where(x => x.DeletedAt == null)
-            .ToArrayAsync(cancellationToken);
-
-        return tiposCliente.FirstOrDefault(x => aliases.Contains(NormalizeCatalogName(x.Nombre)));
+        return await dbContext.TiposCliente
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
     }
 
-    private async Task<TipoDocumentoIdentidad?> FindTipoDocumento(string nombre, CancellationToken cancellationToken)
+    private async Task<TipoDocumentoIdentidad?> FindTipoDocumento(Guid id, CancellationToken cancellationToken)
     {
-        var normalized = NormalizeCatalogName(nombre);
-        var tiposDocumento = await dbContext.TiposDocumentoIdentidad
-            .Where(x => x.DeletedAt == null)
-            .ToArrayAsync(cancellationToken);
-
-        return tiposDocumento.FirstOrDefault(x => NormalizeCatalogName(x.Nombre) == normalized);
+        return await dbContext.TiposDocumentoIdentidad
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
     }
 
     private static string? ValidateCliente(

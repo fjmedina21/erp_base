@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ErpBase.Api.Data;
+using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Contratos;
 using ErpBase.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -13,6 +14,28 @@ namespace ErpBase.Api.Controllers;
 [Route("api/contratos")]
 public sealed class ContratosController(AppDbContext dbContext) : ControllerBase
 {
+    [HttpGet("tipos")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetTiposContrato(CancellationToken cancellationToken)
+    {
+        return Ok(await dbContext.TiposContrato
+            .AsNoTracking()
+            .Where(x => x.DeletedAt == null)
+            .OrderBy(x => x.Nombre)
+            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .ToArrayAsync(cancellationToken));
+    }
+
+    [HttpGet("estados")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetEstadosContrato(CancellationToken cancellationToken)
+    {
+        return Ok(await dbContext.EstadosContrato
+            .AsNoTracking()
+            .Where(x => x.DeletedAt == null)
+            .OrderBy(x => x.Nombre)
+            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .ToArrayAsync(cancellationToken));
+    }
+
     [HttpPost]
     public async Task<ActionResult<ContratoResponse>> Create(CreateContratoRequest request, CancellationToken cancellationToken)
     {

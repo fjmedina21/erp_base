@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ErpBase.Api.Data;
+using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Propiedades;
 using ErpBase.Api.Entities;
 using ErpBase.Api.Services.Storage;
@@ -16,6 +17,28 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
 {
     private static readonly string[] ImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     private static readonly string[] DocumentTypes = ["application/pdf", .. ImageTypes];
+
+    [HttpGet("tipos")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetTiposPropiedad(CancellationToken cancellationToken)
+    {
+        return Ok(await dbContext.TiposPropiedad
+            .AsNoTracking()
+            .Where(x => x.DeletedAt == null)
+            .OrderBy(x => x.Nombre)
+            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .ToArrayAsync(cancellationToken));
+    }
+
+    [HttpGet("estados")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetEstadosPropiedad(CancellationToken cancellationToken)
+    {
+        return Ok(await dbContext.EstadosPropiedad
+            .AsNoTracking()
+            .Where(x => x.DeletedAt == null)
+            .OrderBy(x => x.Nombre)
+            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .ToArrayAsync(cancellationToken));
+    }
 
     [HttpPost]
     public async Task<ActionResult<PropiedadResponse>> Create(CreatePropiedadRequest request, CancellationToken cancellationToken)
