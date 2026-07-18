@@ -34,6 +34,13 @@ services:
       Cloudinary__Folder: ${CLOUDINARY_FOLDER}
       Seed__AdminEmail: ${SEED_ADMIN_EMAIL}
       Seed__AdminPassword: ${SEED_ADMIN_PASSWORD}
+      Email__Smtp__Host: ${EMAIL_SMTP_HOST}
+      Email__Smtp__Port: ${EMAIL_SMTP_PORT}
+      Email__Smtp__EnableSsl: ${EMAIL_SMTP_ENABLE_SSL}
+      Email__Smtp__UserName: ${EMAIL_SMTP_USERNAME}
+      Email__Smtp__Password: ${EMAIL_SMTP_PASSWORD}
+      Email__Smtp__FromEmail: ${EMAIL_SMTP_FROM_EMAIL}
+      Email__Smtp__FromName: ${EMAIL_SMTP_FROM_NAME}
     ports:
       - "${API_PORT}:8080"
 

@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.Json.Serialization;
 using ErpBase.Api.Data;
 using ErpBase.Api.Options;
-using ErpBase.Api.Services;
 using ErpBase.Api.Services.AuthService;
 using ErpBase.Api.Services.Email;
 using ErpBase.Api.Services.JwtService;
@@ -63,6 +62,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection(PasswordResetOptions.SectionName));
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
+builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection(SmtpEmailOptions.SectionName));
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -70,7 +70,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();
-builder.Services.AddScoped<IPasswordResetEmailSender, LoggingPasswordResetEmailSender>();
+builder.Services.AddScoped<IPasswordResetEmailSender, SmtpPasswordResetEmailSender>();
 builder.Services.AddHttpClient<ICloudinaryStorageService, CloudinaryStorageService>();
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
@@ -115,9 +115,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/reset-password", async context =>
+{
+    var fileProvider = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+    var filePath = Path.Combine(fileProvider.WebRootPath, "reset-password", "index.html");
+    context.Response.ContentType = "text/html; charset=utf-8";
+    await context.Response.SendFileAsync(filePath);
+}).AllowAnonymous();
 
 app.Run();
 
@@ -156,6 +164,13 @@ static void LoadLocalEnvironment()
     SetIfMissing("Cloudinary__Folder", "CLOUDINARY_FOLDER");
     SetIfMissing("Seed__AdminEmail", "SEED_ADMIN_EMAIL");
     SetIfMissing("Seed__AdminPassword", "SEED_ADMIN_PASSWORD");
+    SetIfMissing("Email__Smtp__Host", "EMAIL_SMTP_HOST");
+    SetIfMissing("Email__Smtp__Port", "EMAIL_SMTP_PORT");
+    SetIfMissing("Email__Smtp__EnableSsl", "EMAIL_SMTP_ENABLE_SSL");
+    SetIfMissing("Email__Smtp__UserName", "EMAIL_SMTP_USERNAME");
+    SetIfMissing("Email__Smtp__Password", "EMAIL_SMTP_PASSWORD");
+    SetIfMissing("Email__Smtp__FromEmail", "EMAIL_SMTP_FROM_EMAIL");
+    SetIfMissing("Email__Smtp__FromName", "EMAIL_SMTP_FROM_NAME");
 }
 
 static string? FindFileUpwards(string startDirectory, string fileName)

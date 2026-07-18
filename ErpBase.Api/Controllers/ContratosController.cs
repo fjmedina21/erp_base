@@ -16,24 +16,26 @@ namespace ErpBase.Api.Controllers;
 public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStorageService storageService) : ControllerBase
 {
     [HttpGet("tipos")]
-    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetTiposContrato(CancellationToken cancellationToken)
+    [Tags("Catalog")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposContrato(CancellationToken cancellationToken)
     {
         return Ok(await dbContext.TiposContrato
             .AsNoTracking()
             .Where(x => x.DeletedAt == null)
             .OrderBy(x => x.Nombre)
-            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .Select(x => new CatalogoBasicoResponse(x.Id, x.Nombre))
             .ToArrayAsync(cancellationToken));
     }
 
     [HttpGet("estados")]
-    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetEstadosContrato(CancellationToken cancellationToken)
+    [Tags("Catalog")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetEstadosContrato(CancellationToken cancellationToken)
     {
         return Ok(await dbContext.EstadosContrato
             .AsNoTracking()
             .Where(x => x.DeletedAt == null)
             .OrderBy(x => x.Nombre)
-            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .Select(x => new CatalogoBasicoResponse(x.Id, x.Nombre))
             .ToArrayAsync(cancellationToken));
     }
 

@@ -19,24 +19,26 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     private static readonly string[] DocumentTypes = ["application/pdf", .. ImageTypes];
 
     [HttpGet("tipos")]
-    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetTiposPropiedad(CancellationToken cancellationToken)
+    [Tags("Catalog")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposPropiedad(CancellationToken cancellationToken)
     {
         return Ok(await dbContext.TiposPropiedad
             .AsNoTracking()
             .Where(x => x.DeletedAt == null)
             .OrderBy(x => x.Nombre)
-            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre, x.Codigo))
+            .Select(x => new CatalogoBasicoResponse(x.Id, x.Nombre))
             .ToArrayAsync(cancellationToken));
     }
 
     [HttpGet("estados")]
-    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetEstadosPropiedad(CancellationToken cancellationToken)
+    [Tags("Catalog")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetEstadosPropiedad(CancellationToken cancellationToken)
     {
         return Ok(await dbContext.EstadosPropiedad
             .AsNoTracking()
             .Where(x => x.DeletedAt == null)
             .OrderBy(x => x.Nombre)
-            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .Select(x => new CatalogoBasicoResponse(x.Id, x.Nombre))
             .ToArrayAsync(cancellationToken));
     }
 
@@ -329,6 +331,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
 
             if (actualesPrincipales.Length > 0)
             {
+                dbContext.Auditorias.Add(new Auditoria { RegistroId = id, UserId = GetCurrentUserId(), Accion = "FOTOGRAFIA_PRINCIPAL_REEMPLAZADA", Entidad = "propiedades" });
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
         }
@@ -448,10 +451,14 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
         if (banos.HasValue && banos.Value < 0) return "Los banos no pueden ser negativos.";
         if (precioVenta.HasValue && precioVenta.Value < 0) return "El precio de venta no puede ser negativo.";
         if (precioAlquiler.HasValue && precioAlquiler.Value < 0) return "El precio de alquiler no puede ser negativo.";
-        if (metrosTerreno < 0) return "Los metros cuadrados del terreno deben ser mayores o igual que cero.";
+        if (metrosTerreno < 0) return "Los metros cuadrados del terreno no pueden ser negativos.";
         if (metrosConstruccion.HasValue && metrosConstruccion.Value <= 0)
         {
             return "Los metros cuadrados de construccion deben ser mayores que cero.";
+        }
+        if (metrosTerreno > 0 && metrosConstruccion.HasValue && metrosConstruccion.Value > metrosTerreno)
+        {
+            return "Los metros cuadrados de construccion no pueden superar los metros cuadrados del terreno.";
         }
 
         return null;

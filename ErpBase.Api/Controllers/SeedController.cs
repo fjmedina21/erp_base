@@ -18,12 +18,23 @@ public sealed class SeedController(AppDbContext dbContext, IPasswordHasher passw
         var result = new SeedResult();
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            Accion = "SEED_EJECUTADO",
+            Entidad = "seed"
+        });
 
         result.TiposCliente = await SeedSimpleCatalog(dbContext.TiposCliente, ["Persona", "Empresa"], cancellationToken);
         result.TiposPropiedad = await SeedTiposPropiedad(cancellationToken);
         result.EstadosPropiedad = await SeedSimpleCatalog(dbContext.EstadosPropiedad, ["Disponible", "Reservada", "Vendida", "Alquilada"], cancellationToken);
         result.TiposContrato = await SeedSimpleCatalog(dbContext.TiposContrato, ["Venta", "Alquiler", "Arrendamiento"], cancellationToken);
         result.EstadosContrato = await SeedSimpleCatalog(dbContext.EstadosContrato, ["Activo", "Vencido", "Cancelado"], cancellationToken);
+        result.Departamentos = await SeedSimpleCatalog(dbContext.Departamentos, ["Administración", "Ventas", "Arquitectura", "Ingeniería", "Supervisión", "Construcción"], cancellationToken);
+        result.Cargos = await SeedSimpleCatalog(dbContext.Cargos, ["Administrador", "Agente Inmobiliario", "Arquitecto", "Ingeniero", "Supervisor", "Maestro de Obra"], cancellationToken);
+        result.EstadosProyecto = await SeedSimpleCatalog(dbContext.EstadosProyecto, ["Planificado", "En Progreso", "Suspendido", "Finalizado"], cancellationToken);
+        result.EstadosFase = await SeedSimpleCatalog(dbContext.EstadosFase, ["Pendiente", "En Progreso", "Finalizada"], cancellationToken);
+        result.EstadosTarea = await SeedSimpleCatalog(dbContext.EstadosTarea, ["Pendiente", "En Progreso", "Completada", "Cancelada"], cancellationToken);
+        result.PrioridadesTarea = await SeedSimpleCatalog(dbContext.PrioridadesTarea, ["Baja", "Media", "Alta", "Crítica"], cancellationToken);
         result.TiposDocumentoIdentidad = await SeedTiposDocumentoIdentidad(cancellationToken);
         result.Roles = await SeedRoles(cancellationToken);
         result.Permisos = await SeedPermisos(cancellationToken);
@@ -43,6 +54,12 @@ public sealed class SeedController(AppDbContext dbContext, IPasswordHasher passw
             result.EstadosPropiedad,
             result.TiposContrato,
             result.EstadosContrato,
+            result.Departamentos,
+            result.Cargos,
+            result.EstadosProyecto,
+            result.EstadosFase,
+            result.EstadosTarea,
+            result.PrioridadesTarea,
             result.Roles,
             result.Permisos,
             result.RolesPermisos,
@@ -390,6 +407,12 @@ public sealed class SeedController(AppDbContext dbContext, IPasswordHasher passw
         public int EstadosPropiedad { get; set; }
         public int TiposContrato { get; set; }
         public int EstadosContrato { get; set; }
+        public int Departamentos { get; set; }
+        public int Cargos { get; set; }
+        public int EstadosProyecto { get; set; }
+        public int EstadosFase { get; set; }
+        public int EstadosTarea { get; set; }
+        public int PrioridadesTarea { get; set; }
         public int Roles { get; set; }
         public int Permisos { get; set; }
         public int RolesPermisos { get; set; }
@@ -406,6 +429,12 @@ public sealed record SeedResponse(
     int EstadosPropiedad,
     int TiposContrato,
     int EstadosContrato,
+    int Departamentos,
+    int Cargos,
+    int EstadosProyecto,
+    int EstadosFase,
+    int EstadosTarea,
+    int PrioridadesTarea,
     int Roles,
     int Permisos,
     int RolesPermisos,

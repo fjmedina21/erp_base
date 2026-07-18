@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Entity Framework generated migrations
+ErpBase.Api/Data/Migrations/
+
 # User-specific files
 *.rsuser
 *.suo

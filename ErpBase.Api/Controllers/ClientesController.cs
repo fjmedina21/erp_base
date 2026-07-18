@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Clientes;
@@ -15,24 +16,26 @@ namespace ErpBase.Api.Controllers;
 public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet("tipos")]
-    public async Task<ActionResult<IReadOnlyCollection<CatalogoItemResponse>>> GetTiposCliente(CancellationToken cancellationToken)
+    [Tags("Catalog")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposCliente(CancellationToken cancellationToken)
     {
         return Ok(await dbContext.TiposCliente
             .AsNoTracking()
             .Where(x => x.DeletedAt == null)
             .OrderBy(x => x.Nombre)
-            .Select(x => new CatalogoItemResponse(x.Id, x.Nombre))
+            .Select(x => new CatalogoBasicoResponse(x.Id, x.Nombre))
             .ToArrayAsync(cancellationToken));
     }
 
     [HttpGet("tipos-documento-identidad")]
-    public async Task<ActionResult<IReadOnlyCollection<TipoDocumentoIdentidadResponse>>> GetTiposDocumentoIdentidad(CancellationToken cancellationToken)
+    [Tags("Catalog")]
+    public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposDocumentoIdentidad(CancellationToken cancellationToken)
     {
         return Ok(await dbContext.TiposDocumentoIdentidad
             .AsNoTracking()
             .Where(x => x.DeletedAt == null)
             .OrderBy(x => x.Nombre)
-            .Select(x => new TipoDocumentoIdentidadResponse(x.Id, x.Nombre, x.RegexValidacion))
+            .Select(x => new CatalogoBasicoResponse(x.Id, x.Nombre))
             .ToArrayAsync(cancellationToken));
     }
 
@@ -54,6 +57,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
         var validationError = ValidateCliente(
             tipoCliente.Nombre,
             tipoDocumento.Nombre,
+            tipoDocumento.RegexValidacion,
             request.Documento,
             request.Nombres,
             request.Apellidos,
@@ -138,7 +142,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
         var apellidos = request.Apellidos is null ? cliente.Apellidos : NormalizeOptional(request.Apellidos);
         var razonSocial = request.RazonSocial is null ? cliente.RazonSocial : NormalizeOptional(request.RazonSocial);
 
-        var validationError = ValidateCliente(tipoCliente.Nombre, tipoDocumento.Nombre, documento, nombres, apellidos, razonSocial);
+        var validationError = ValidateCliente(tipoCliente.Nombre, tipoDocumento.Nombre, tipoDocumento.RegexValidacion, documento, nombres, apellidos, razonSocial);
         if (validationError is not null)
         {
             return BadRequest(new { message = validationError });
@@ -338,6 +342,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
     private static string? ValidateCliente(
         string tipoCliente,
         string tipoDocumento,
+        string? regexValidacion,
         string? documento,
         string? nombres,
         string? apellidos,
@@ -346,6 +351,11 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
         if (string.IsNullOrWhiteSpace(documento))
         {
             return "El documento es requerido.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(regexValidacion) && !Regex.IsMatch(documento, regexValidacion))
+        {
+            return "El documento no cumple con el formato requerido para el tipo de documento seleccionado.";
         }
 
         var normalizedTipoCliente = NormalizeCatalogName(tipoCliente);

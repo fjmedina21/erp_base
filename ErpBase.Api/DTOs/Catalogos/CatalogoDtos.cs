@@ -1,19 +1,13 @@
 namespace ErpBase.Api.DTOs.Catalogos;
 
-public sealed record CatalogoItemResponse(
+public sealed record CatalogoBasicoResponse(
     Guid Id,
-    string Nombre,
-    string? Codigo = null);
-
-public sealed record TipoDocumentoIdentidadResponse(
-    Guid Id,
-    string Nombre,
-    string? RegexValidacion);
+    string Nombre);
 
 public sealed record CatalogosResponse(
-    IReadOnlyCollection<CatalogoItemResponse> TiposCliente,
-    IReadOnlyCollection<TipoDocumentoIdentidadResponse> TiposDocumentoIdentidad,
-    IReadOnlyCollection<CatalogoItemResponse> TiposPropiedad,
-    IReadOnlyCollection<CatalogoItemResponse> EstadosPropiedad,
-    IReadOnlyCollection<CatalogoItemResponse> TiposContrato,
-    IReadOnlyCollection<CatalogoItemResponse> EstadosContrato);
+    IReadOnlyCollection<CatalogoBasicoResponse> TiposCliente,
+    IReadOnlyCollection<CatalogoBasicoResponse> TiposDocumentoIdentidad,
+    IReadOnlyCollection<CatalogoBasicoResponse> TiposPropiedad,
+    IReadOnlyCollection<CatalogoBasicoResponse> EstadosPropiedad,
+    IReadOnlyCollection<CatalogoBasicoResponse> TiposContrato,
+    IReadOnlyCollection<CatalogoBasicoResponse> EstadosContrato);

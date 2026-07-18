@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Roles;
 using ErpBase.Api.Entities;
@@ -44,11 +45,19 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
 
         var role = new Role
         {
+            Id = Guid.NewGuid(),
             Nombre = name,
             Descripcion = request.Descripcion
         };
 
         dbContext.Roles.Add(role);
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = role.Id,
+            UserId = GetCurrentUserId(),
+            Accion = "CREACION",
+            Entidad = "roles"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -84,6 +93,13 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
         }
 
         role.UpdatedAt = DateTime.Now;
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = role.Id,
+            UserId = GetCurrentUserId(),
+            Accion = "PERMISOS_ASIGNADOS",
+            Entidad = "roles"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return NoContent();
@@ -101,12 +117,20 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
 
         var permission = new Permission
         {
+            Id = Guid.NewGuid(),
             Codigo = code,
             Nombre = request.Nombre.Trim(),
             Descripcion = request.Descripcion
         };
 
         dbContext.Permissions.Add(permission);
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = permission.Id,
+            UserId = GetCurrentUserId(),
+            Accion = "CREACION",
+            Entidad = "permisos"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return Created("api/roles/permissions", new
@@ -116,5 +140,11 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
             permission.Nombre,
             permission.Descripcion
         });
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var userIdValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
 }

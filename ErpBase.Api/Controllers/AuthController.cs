@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Auth;
 using ErpBase.Api.Entities;
@@ -38,12 +39,19 @@ public sealed class AuthController(
 
         var user = new User
         {
+            Id = Guid.NewGuid(),
             Email = email,
             PasswordHash = passwordHasher.Hash(request.Password),
             Activo = true
         };
 
         dbContext.Users.Add(user);
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = user.Id,
+            Accion = "REGISTRO",
+            Entidad = "usuarios"
+        });
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(new AuthResponse(user.Id, user.Email, jwtTokenService.CreateToken(user, [], []), [], []));
@@ -63,6 +71,13 @@ public sealed class AuthController(
 
         if (user is null || !user.Activo || user.Bloqueado || !passwordHasher.Verify(request.Password, user.PasswordHash))
         {
+            dbContext.Auditorias.Add(new Auditoria
+            {
+                RegistroId = user?.Id,
+                Accion = "LOGIN_FALLIDO",
+                Entidad = "usuarios"
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
             return Unauthorized(new { message = "Credenciales inválidas." });
         }
 
@@ -80,6 +95,13 @@ public sealed class AuthController(
             .ToArray();
 
         var token = jwtTokenService.CreateToken(user, roles, permissions);
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = user.Id,
+            Accion = "LOGIN_EXITOSO",
+            Entidad = "usuarios"
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new AuthResponse(user.Id, user.Email, token, roles, permissions));
     }
 
@@ -95,6 +117,12 @@ public sealed class AuthController(
         var genericMessage = "Si el correo existe y está activo, se enviará un enlace de recuperación.";
         if (user is null)
         {
+            dbContext.Auditorias.Add(new Auditoria
+            {
+                Accion = "RECUPERACION_PASSWORD_SOLICITADA",
+                Entidad = "usuarios"
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
             return Ok(new ForgotPasswordResponse(genericMessage));
         }
 
@@ -108,10 +136,17 @@ public sealed class AuthController(
             TokenHash = passwordResetTokenService.HashToken(resetToken),
             ExpiresAt = expiresAt
         });
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = user.Id,
+            Accion = "RECUPERACION_PASSWORD_SOLICITADA",
+            Entidad = "usuarios"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var resetUrl = $"{options.ResetUrlBase}?token={Uri.EscapeDataString(resetToken)}";
+        var resetUrlBase = $"{Request.Scheme}://{Request.Host}/reset-password";
+        var resetUrl = $"{resetUrlBase}?token={Uri.EscapeDataString(resetToken)}";
         await passwordResetEmailSender.SendPasswordResetAsync(user.Email, resetUrl, expiresAt, cancellationToken);
 
         if (environment.IsDevelopment())
@@ -124,9 +159,19 @@ public sealed class AuthController(
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
-    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ResetPassword([FromQuery] string token, ResetPasswordRequest request, CancellationToken cancellationToken)
     {
-        var tokenHash = passwordResetTokenService.HashToken(request.Token);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest(new { message = "El token de recuperación es requerido." });
+        }
+
+        if (request.NewPassword != request.ConfirmPassword)
+        {
+            return BadRequest(new { message = "La confirmación de contraseña no coincide." });
+        }
+
+        var tokenHash = passwordResetTokenService.HashToken(token);
         var resetToken = await dbContext.PasswordResetTokens
             .Include(x => x.User)
             .FirstOrDefaultAsync(x => x.TokenHash == tokenHash, cancellationToken);
@@ -144,6 +189,12 @@ public sealed class AuthController(
         resetToken.User.PasswordHash = passwordHasher.Hash(request.NewPassword);
         resetToken.User.UpdatedAt = DateTime.Now;
         resetToken.UsedAt = DateTime.Now;
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = resetToken.UserId,
+            Accion = "PASSWORD_RESTABLECIDO",
+            Entidad = "usuarios"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return NoContent();

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Users;
 using ErpBase.Api.Entities;
@@ -68,6 +69,13 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
 
         user.Activo = request.Activo;
         user.UpdatedAt = DateTime.Now;
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = user.Id,
+            UserId = GetCurrentUserId(),
+            Accion = "ESTADO_ACTUALIZADO",
+            Entidad = "usuarios"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return NoContent();
@@ -92,6 +100,13 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
         user.BloqueadoAt = DateTime.Now;
         user.ReactivadoAt = null;
         user.UpdatedAt = DateTime.Now;
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = user.Id,
+            UserId = GetCurrentUserId(),
+            Accion = "BLOQUEO",
+            Entidad = "usuarios"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return NoContent();
@@ -111,6 +126,13 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
         user.MotivoBloqueo = null;
         user.ReactivadoAt = DateTime.Now;
         user.UpdatedAt = DateTime.Now;
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = user.Id,
+            UserId = GetCurrentUserId(),
+            Accion = "REACTIVACION",
+            Entidad = "usuarios"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return NoContent();
@@ -144,8 +166,21 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
         }
 
         user.UpdatedAt = DateTime.Now;
+        dbContext.Auditorias.Add(new Auditoria
+        {
+            RegistroId = user.Id,
+            UserId = GetCurrentUserId(),
+            Accion = "ROLES_ASIGNADOS",
+            Entidad = "usuarios"
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return NoContent();
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var userIdValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
 }

@@ -24,6 +24,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<TipoContrato> TiposContrato => Set<TipoContrato>();
     public DbSet<EstadoContrato> EstadosContrato => Set<EstadoContrato>();
     public DbSet<Contrato> Contratos => Set<Contrato>();
+    public DbSet<Departamento> Departamentos => Set<Departamento>();
+    public DbSet<Cargo> Cargos => Set<Cargo>();
+    public DbSet<Empleado> Empleados => Set<Empleado>();
+    public DbSet<EstadoProyecto> EstadosProyecto => Set<EstadoProyecto>();
+    public DbSet<Proyecto> Proyectos => Set<Proyecto>();
+    public DbSet<EstadoFase> EstadosFase => Set<EstadoFase>();
+    public DbSet<ProyectoFase> ProyectoFases => Set<ProyectoFase>();
+    public DbSet<PrioridadTarea> PrioridadesTarea => Set<PrioridadTarea>();
+    public DbSet<EstadoTarea> EstadosTarea => Set<EstadoTarea>();
+    public DbSet<ProyectoTarea> ProyectoTareas => Set<ProyectoTarea>();
+    public DbSet<ProyectoTareaResponsable> ProyectoTareaResponsables => Set<ProyectoTareaResponsable>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -231,8 +242,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 t.HasCheckConstraint("chk_longitud", "longitud BETWEEN -180 AND 180");
                 t.HasCheckConstraint("chk_habitaciones", "habitaciones IS NULL OR habitaciones >= 0");
                 t.HasCheckConstraint("chk_banos", "banos IS NULL OR banos >= 0");
-                t.HasCheckConstraint("chk_metros_cuadrados_terreno", "metros_cuadrados_terreno > 0");
-                t.HasCheckConstraint("chk_area_construccion", "metros_cuadrados_construccion IS NULL OR (metros_cuadrados_construccion > 0 AND metros_cuadrados_construccion <= metros_cuadrados_terreno)");
+                t.HasCheckConstraint("chk_metros_cuadrados_terreno", "metros_cuadrados_terreno >= 0");
+                t.HasCheckConstraint("chk_area_construccion", "metros_cuadrados_construccion IS NULL OR (metros_cuadrados_construccion > 0 AND (metros_cuadrados_terreno = 0 OR metros_cuadrados_construccion <= metros_cuadrados_terreno))");
             });
         });
 
@@ -334,6 +345,201 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasOne(x => x.TipoContrato).WithMany().HasForeignKey(x => x.TipoContratoId);
             entity.HasOne(x => x.EstadoContrato).WithMany().HasForeignKey(x => x.EstadoContratoId);
             entity.ToTable(t => t.HasCheckConstraint("chk_contratos_fechas", "fecha_fin IS NULL OR fecha_fin >= fecha_inicio"));
+        });
+
+        modelBuilder.Entity<Departamento>(entity =>
+        {
+            entity.ToTable("departamentos", "rrhh");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<Cargo>(entity =>
+        {
+            entity.ToTable("cargos", "rrhh");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<Empleado>(entity =>
+        {
+            entity.ToTable("empleados", "rrhh");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.UsuarioId).HasColumnName("usuario_id").IsRequired();
+            entity.Property(x => x.DepartamentoId).HasColumnName("departamento_id").IsRequired();
+            entity.Property(x => x.CargoId).HasColumnName("cargo_id").IsRequired();
+            entity.Property(x => x.Nombres).HasColumnName("nombres").HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Apellidos).HasColumnName("apellidos").HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Telefono).HasColumnName("telefono").HasMaxLength(50);
+            entity.Property(x => x.FechaIngreso).HasColumnName("fecha_ingreso").IsRequired();
+            entity.Property(x => x.FechaSalida).HasColumnName("fecha_salida");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.UsuarioId).IsUnique();
+            entity.HasIndex(x => x.DepartamentoId).HasDatabaseName("idx_empleados_departamento");
+            entity.HasIndex(x => x.CargoId).HasDatabaseName("idx_empleados_cargo");
+            entity.HasOne(x => x.Usuario).WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Departamento).WithMany().HasForeignKey(x => x.DepartamentoId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Cargo).WithMany().HasForeignKey(x => x.CargoId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("chk_empleado_fechas", "fecha_salida IS NULL OR fecha_salida >= fecha_ingreso"));
+        });
+
+        modelBuilder.Entity<EstadoProyecto>(entity =>
+        {
+            entity.ToTable("estados_proyecto", "proyectos");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<Proyecto>(entity =>
+        {
+            entity.ToTable("proyectos", "proyectos");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.Codigo).HasColumnName("codigo").HasMaxLength(50).IsRequired();
+            entity.Property(x => x.ClienteId).HasColumnName("cliente_id");
+            entity.Property(x => x.EstadoProyectoId).HasColumnName("estado_proyecto_id").IsRequired();
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(255).IsRequired();
+            entity.Property(x => x.Descripcion).HasColumnName("descripcion");
+            entity.Property(x => x.FechaInicio).HasColumnName("fecha_inicio").IsRequired();
+            entity.Property(x => x.FechaFin).HasColumnName("fecha_fin").IsRequired();
+            entity.Property(x => x.FechaProrroga).HasColumnName("fecha_prorroga");
+            entity.Property(x => x.PorcentajeAvance).HasColumnName("porcentaje_avance").HasPrecision(5, 2).HasDefaultValue(0).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.Codigo).IsUnique();
+            entity.HasIndex(x => x.ClienteId).HasDatabaseName("idx_proyectos_cliente");
+            entity.HasIndex(x => x.EstadoProyectoId).HasDatabaseName("idx_proyectos_estado");
+            entity.HasOne(x => x.Cliente).WithMany().HasForeignKey(x => x.ClienteId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.EstadoProyecto).WithMany().HasForeignKey(x => x.EstadoProyectoId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("chk_fechas_proyecto", "fecha_fin >= fecha_inicio");
+                t.HasCheckConstraint("chk_proyectos_fecha_prorroga", "fecha_prorroga IS NULL OR fecha_prorroga >= fecha_fin");
+                t.HasCheckConstraint("chk_proyectos_porcentaje_avance", "porcentaje_avance BETWEEN 0 AND 100");
+            });
+        });
+
+        modelBuilder.Entity<EstadoFase>(entity =>
+        {
+            entity.ToTable("estados_fase", "proyectos");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<ProyectoFase>(entity =>
+        {
+            entity.ToTable("proyecto_fases", "proyectos");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.ProyectoId).HasColumnName("proyecto_id").IsRequired();
+            entity.Property(x => x.EstadoFaseId).HasColumnName("estado_fase_id").IsRequired();
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Descripcion).HasColumnName("descripcion");
+            entity.Property(x => x.FechaInicio).HasColumnName("fecha_inicio").IsRequired();
+            entity.Property(x => x.FechaFin).HasColumnName("fecha_fin").IsRequired();
+            entity.Property(x => x.FechaProrroga).HasColumnName("fecha_prorroga");
+            entity.Property(x => x.PorcentajeAvance).HasColumnName("porcentaje_avance").HasPrecision(5, 2).HasDefaultValue(0).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.ProyectoId).HasDatabaseName("idx_proyecto_fases_proyecto");
+            entity.HasOne(x => x.Proyecto).WithMany().HasForeignKey(x => x.ProyectoId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EstadoFase).WithMany().HasForeignKey(x => x.EstadoFaseId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("chk_fechas_proyecto_fase", "fecha_fin >= fecha_inicio");
+                t.HasCheckConstraint("chk_proyecto_fases_fecha_prorroga", "fecha_prorroga IS NULL OR fecha_prorroga >= fecha_fin");
+                t.HasCheckConstraint("chk_proyecto_fases_porcentaje_avance", "porcentaje_avance BETWEEN 0 AND 100");
+            });
+        });
+
+        modelBuilder.Entity<PrioridadTarea>(entity =>
+        {
+            entity.ToTable("prioridades_tarea", "proyectos");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<EstadoTarea>(entity =>
+        {
+            entity.ToTable("estados_tarea", "proyectos");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(50).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<ProyectoTarea>(entity =>
+        {
+            entity.ToTable("proyecto_tareas", "proyectos");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(x => x.ProyectoFaseId).HasColumnName("proyecto_fase_id").IsRequired();
+            entity.Property(x => x.EstadoTareaId).HasColumnName("estado_tarea_id").IsRequired();
+            entity.Property(x => x.PrioridadId).HasColumnName("prioridad_id").IsRequired();
+            entity.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(255).IsRequired();
+            entity.Property(x => x.Descripcion).HasColumnName("descripcion");
+            entity.Property(x => x.FechaInicio).HasColumnName("fecha_inicio").IsRequired();
+            entity.Property(x => x.FechaFin).HasColumnName("fecha_fin").IsRequired();
+            entity.Property(x => x.FechaProrroga).HasColumnName("fecha_prorroga");
+            entity.Property(x => x.PorcentajeAvance).HasColumnName("porcentaje_avance").HasPrecision(5, 2).HasDefaultValue(0).IsRequired();
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamp");
+            entity.HasIndex(x => x.ProyectoFaseId).HasDatabaseName("idx_proyecto_tareas_fase");
+            entity.HasIndex(x => x.EstadoTareaId).HasDatabaseName("idx_proyecto_tareas_estado");
+            entity.HasIndex(x => x.PrioridadId).HasDatabaseName("idx_proyecto_tareas_prioridad");
+            entity.HasOne(x => x.ProyectoFase).WithMany().HasForeignKey(x => x.ProyectoFaseId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EstadoTarea).WithMany().HasForeignKey(x => x.EstadoTareaId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Prioridad).WithMany().HasForeignKey(x => x.PrioridadId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("chk_proyecto_tareas_fechas_proyecto", "fecha_fin >= fecha_inicio");
+                t.HasCheckConstraint("chk_proyecto_tareas_fecha_prorroga", "fecha_prorroga IS NULL OR fecha_prorroga >= fecha_fin");
+                t.HasCheckConstraint("chk_proyecto_tareas_porcentaje", "porcentaje_avance BETWEEN 0 AND 100");
+            });
+        });
+
+        modelBuilder.Entity<ProyectoTareaResponsable>(entity =>
+        {
+            entity.ToTable("proyecto_tarea_responsables", "proyectos");
+            entity.HasKey(x => new { x.ProyectoTareaId, x.EmpleadoId });
+            entity.Property(x => x.ProyectoTareaId).HasColumnName("proyecto_tarea_id");
+            entity.Property(x => x.EmpleadoId).HasColumnName("empleado_id");
+            entity.HasOne(x => x.ProyectoTarea).WithMany().HasForeignKey(x => x.ProyectoTareaId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Empleado).WithMany().HasForeignKey(x => x.EmpleadoId).OnDelete(DeleteBehavior.Restrict);
         });
 
     }
