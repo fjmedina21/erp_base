@@ -1,3 +1,4 @@
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using Microsoft.AspNetCore.Authorization;
@@ -13,6 +14,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class EstadosTareaController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
+    [HasPermission("estados_tarea.ver")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetAll(CancellationToken cancellationToken) =>
         Ok(await dbContext.EstadosTarea.AsNoTracking()
             .Where(x => x.DeletedAt == null)

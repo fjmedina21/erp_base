@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Rrhh;
 using ErpBase.Api.Entities;
@@ -14,6 +15,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class CargosController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
+    [HasPermission("cargos.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoAdminResponse>>> GetAll(CancellationToken cancellationToken)
     {
@@ -27,6 +29,7 @@ public sealed class CargosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("cargos.ver")]
     public async Task<ActionResult<CatalogoAdminResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var cargo = await dbContext.Cargos.AsNoTracking()
@@ -36,6 +39,7 @@ public sealed class CargosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost]
+    [HasPermission("cargos.crear")]
     public async Task<ActionResult<CatalogoAdminResponse>> Create(CreateCatalogoRequest request, CancellationToken cancellationToken)
     {
         var nombre = request.Nombre.Trim();
@@ -54,6 +58,7 @@ public sealed class CargosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("cargos.editar")]
     public async Task<ActionResult<CatalogoAdminResponse>> Update(Guid id, UpdateCatalogoRequest request, CancellationToken cancellationToken)
     {
         var cargo = await dbContext.Cargos.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -71,6 +76,7 @@ public sealed class CargosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [HasPermission("cargos.eliminar")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var cargo = await dbContext.Cargos.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);

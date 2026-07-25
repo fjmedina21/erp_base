@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Proyectos;
@@ -15,6 +16,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class FasesController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet("{id:guid}")]
+    [HasPermission("fases.ver")]
     public async Task<ActionResult<FaseResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var fase = await BaseFaseQuery().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -22,6 +24,7 @@ public sealed class FasesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("fases.editar")]
     public async Task<ActionResult<FaseResponse>> Update(Guid id, UpdateFaseRequest request, CancellationToken cancellationToken)
     {
         var fase = await dbContext.ProyectoFases.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -53,6 +56,7 @@ public sealed class FasesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [HasPermission("fases.eliminar")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var fase = await dbContext.ProyectoFases.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -65,6 +69,7 @@ public sealed class FasesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{faseId:guid}/tareas")]
+    [HasPermission("tareas.ver")]
     public async Task<ActionResult<IReadOnlyCollection<TareaResponse>>> GetTareas(Guid faseId, CancellationToken cancellationToken)
     {
         var exists = await dbContext.ProyectoFases.AnyAsync(x => x.Id == faseId && x.DeletedAt == null, cancellationToken);
@@ -79,6 +84,7 @@ public sealed class FasesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost("{faseId:guid}/tareas")]
+    [HasPermission("tareas.crear")]
     public async Task<ActionResult<TareaResponse>> CreateTarea(Guid faseId, CreateTareaRequest request, CancellationToken cancellationToken)
     {
         var exists = await dbContext.ProyectoFases.AnyAsync(x => x.Id == faseId && x.DeletedAt == null, cancellationToken);

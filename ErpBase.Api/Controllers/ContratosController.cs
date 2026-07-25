@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Contratos;
@@ -16,6 +17,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStorageService storageService) : ControllerBase
 {
     [HttpGet("tipos")]
+    [HasPermission("tipos_contrato.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposContrato(CancellationToken cancellationToken)
     {
@@ -28,6 +30,7 @@ public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStora
     }
 
     [HttpGet("estados")]
+    [HasPermission("estados_contrato.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetEstadosContrato(CancellationToken cancellationToken)
     {
@@ -40,6 +43,7 @@ public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStora
     }
 
     [HttpPost]
+    [HasPermission("contratos.crear")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<ContratoResponse>> Create([FromForm] CreateContratoRequest request, CancellationToken cancellationToken)
     {
@@ -94,6 +98,7 @@ public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStora
     }
 
     [HttpGet]
+    [HasPermission("contratos.ver")]
     public async Task<ActionResult<IReadOnlyCollection<ContratoResponse>>> GetAll(CancellationToken cancellationToken)
     {
         var contratos = await dbContext.Contratos.AsNoTracking()
@@ -107,6 +112,7 @@ public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStora
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("contratos.ver")]
     public async Task<ActionResult<ContratoResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var contrato = await dbContext.Contratos.AsNoTracking()
@@ -118,6 +124,7 @@ public sealed class ContratosController(AppDbContext dbContext, ICloudinaryStora
     }
 
     [HttpGet("proximos-vencer")]
+    [HasPermission("contratos.ver")]
     public async Task<ActionResult<IReadOnlyCollection<ContratoResponse>>> GetProximosVencer([FromQuery] int dias = 30, CancellationToken cancellationToken = default)
     {
         var hasta = DateOnly.FromDateTime(DateTime.Today.AddDays(dias));

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Rrhh;
 using ErpBase.Api.Entities;
@@ -14,6 +15,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class EmpleadosController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
+    [HasPermission("empleados.ver")]
     public async Task<ActionResult<IReadOnlyCollection<EmpleadoResponse>>> GetAll([FromQuery] Guid? departamentoId, [FromQuery] Guid? cargoId, CancellationToken cancellationToken)
     {
         var query = dbContext.Empleados.AsNoTracking()
@@ -30,6 +32,7 @@ public sealed class EmpleadosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("empleados.ver")]
     public async Task<ActionResult<EmpleadoResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var empleado = await dbContext.Empleados.AsNoTracking()
@@ -42,6 +45,7 @@ public sealed class EmpleadosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost]
+    [HasPermission("empleados.crear")]
     public async Task<ActionResult<EmpleadoResponse>> Create(CreateEmpleadoRequest request, CancellationToken cancellationToken)
     {
         var validation = await ValidateReferences(request.UsuarioId, request.DepartamentoId, request.CargoId, cancellationToken);
@@ -71,6 +75,7 @@ public sealed class EmpleadosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("empleados.editar")]
     public async Task<ActionResult<EmpleadoResponse>> Update(Guid id, UpdateEmpleadoRequest request, CancellationToken cancellationToken)
     {
         var empleado = await dbContext.Empleados.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -100,6 +105,7 @@ public sealed class EmpleadosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [HasPermission("empleados.eliminar")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var empleado = await dbContext.Empleados.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);

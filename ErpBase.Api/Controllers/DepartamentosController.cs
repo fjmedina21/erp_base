@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Rrhh;
 using ErpBase.Api.Entities;
@@ -14,6 +15,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class DepartamentosController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
+    [HasPermission("departamentos.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoAdminResponse>>> GetAll(CancellationToken cancellationToken)
     {
@@ -27,6 +29,7 @@ public sealed class DepartamentosController(AppDbContext dbContext) : Controller
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("departamentos.ver")]
     public async Task<ActionResult<CatalogoAdminResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var departamento = await dbContext.Departamentos.AsNoTracking()
@@ -36,6 +39,7 @@ public sealed class DepartamentosController(AppDbContext dbContext) : Controller
     }
 
     [HttpPost]
+    [HasPermission("departamentos.crear")]
     public async Task<ActionResult<CatalogoAdminResponse>> Create(CreateCatalogoRequest request, CancellationToken cancellationToken)
     {
         var nombre = request.Nombre.Trim();
@@ -54,6 +58,7 @@ public sealed class DepartamentosController(AppDbContext dbContext) : Controller
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("departamentos.editar")]
     public async Task<ActionResult<CatalogoAdminResponse>> Update(Guid id, UpdateCatalogoRequest request, CancellationToken cancellationToken)
     {
         var departamento = await dbContext.Departamentos.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -71,6 +76,7 @@ public sealed class DepartamentosController(AppDbContext dbContext) : Controller
     }
 
     [HttpDelete("{id:guid}")]
+    [HasPermission("departamentos.eliminar")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var departamento = await dbContext.Departamentos.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);

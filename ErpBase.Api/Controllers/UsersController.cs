@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Users;
 using ErpBase.Api.Entities;
@@ -14,6 +15,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class UsersController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
+    [HasPermission("usuarios.ver")]
     public async Task<ActionResult<IReadOnlyCollection<UserResponse>>> GetAll(CancellationToken cancellationToken)
     {
         var users = await dbContext.Users
@@ -37,6 +39,7 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("usuarios.ver")]
     public async Task<ActionResult<UserResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var user = await dbContext.Users
@@ -59,6 +62,7 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/status")]
+    [HasPermission("usuarios.editar")]
     public async Task<IActionResult> UpdateStatus(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken)
     {
         var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -82,6 +86,7 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/block")]
+    [HasPermission("usuarios.editar")]
     public async Task<IActionResult> Block(Guid id, BlockUserRequest request, CancellationToken cancellationToken)
     {
         var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -113,6 +118,7 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/reactivate")]
+    [HasPermission("usuarios.editar")]
     public async Task<IActionResult> Reactivate(Guid id, CancellationToken cancellationToken)
     {
         var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -139,6 +145,7 @@ public sealed class UsersController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}/roles")]
+    [HasPermission("usuarios.editar")]
     public async Task<IActionResult> AssignRoles(Guid id, AssignRolesRequest request, CancellationToken cancellationToken)
     {
         var user = await dbContext.Users

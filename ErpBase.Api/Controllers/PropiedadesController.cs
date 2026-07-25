@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Propiedades;
@@ -19,6 +20,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     private static readonly string[] DocumentTypes = ["application/pdf", .. ImageTypes];
 
     [HttpGet("tipos")]
+    [HasPermission("tipos_propiedad.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposPropiedad(CancellationToken cancellationToken)
     {
@@ -31,6 +33,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpGet("estados")]
+    [HasPermission("estados_propiedad.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetEstadosPropiedad(CancellationToken cancellationToken)
     {
@@ -43,6 +46,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpPost]
+    [HasPermission("propiedades.crear")]
     public async Task<ActionResult<PropiedadResponse>> Create(CreatePropiedadRequest request, CancellationToken cancellationToken)
     {
         var tipoPropiedad = await dbContext.TiposPropiedad.FirstOrDefaultAsync(x => x.Id == request.TipoPropiedadId && x.DeletedAt == null, cancellationToken);
@@ -83,6 +87,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("propiedades.editar")]
     public async Task<ActionResult<PropiedadResponse>> Update(Guid id, UpdatePropiedadRequest request, CancellationToken cancellationToken)
     {
         var propiedad = await dbContext.Propiedades.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -123,6 +128,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpGet]
+    [HasPermission("propiedades.ver")]
     public async Task<ActionResult<IReadOnlyCollection<PropiedadResponse>>> GetAll([FromQuery] Guid? tipo, [FromQuery] Guid? estado, CancellationToken cancellationToken)
     {
         var query = dbContext.Propiedades.AsNoTracking().Where(x => x.DeletedAt == null);
@@ -135,6 +141,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("propiedades.ver")]
     public async Task<ActionResult<PropiedadResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var exists = await dbContext.Propiedades.AnyAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -142,6 +149,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpGet("{id:guid}/inversionistas")]
+    [HasPermission("propiedades.ver")]
     public async Task<ActionResult<IReadOnlyCollection<PropiedadInversionistaResponse>>> GetInversionistas(Guid id, CancellationToken cancellationToken)
     {
         var exists = await dbContext.Propiedades.AnyAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -158,6 +166,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpPost("{id:guid}/inversionistas")]
+    [HasPermission("propiedades.editar")]
     public async Task<ActionResult<PropiedadInversionistaResponse>> AddInversionista(Guid id, InsertPropiedadInversionistaRequest request, CancellationToken cancellationToken)
     {
         var exists = await dbContext.Propiedades.AnyAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -204,6 +213,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpPut("{id:guid}/inversionistas/{clienteId:guid}")]
+    [HasPermission("propiedades.editar")]
     public async Task<ActionResult<PropiedadInversionistaResponse>> UpdateInversionista(Guid id, Guid clienteId, UpdatePropiedadInversionistaRequest request, CancellationToken cancellationToken)
     {
         var inversionista = await dbContext.PropiedadInversionistas
@@ -226,6 +236,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpDelete("{id:guid}/inversionistas/{clienteId:guid}")]
+    [HasPermission("propiedades.eliminar")]
     public async Task<IActionResult> DeleteInversionista(Guid id, Guid clienteId, CancellationToken cancellationToken)
     {
         var inversionista = await dbContext.PropiedadInversionistas
@@ -241,6 +252,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpPost("{id:guid}/documentos")]
+    [HasPermission("propiedades.editar")]
     public async Task<ActionResult<PropiedadDocumentoResponse>> AddDocumento(Guid id, [FromForm] PropiedadDocumentoUploadRequest request, CancellationToken cancellationToken)
     {
         var fileValidation = ValidateFile(request.Archivo, DocumentTypes, "Solo se permiten PDF e imágenes.");
@@ -273,12 +285,14 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpGet("{id:guid}/documentos")]
+    [HasPermission("propiedades.ver")]
     public async Task<ActionResult<IReadOnlyCollection<PropiedadDocumentoResponse>>> GetDocumentos(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await dbContext.PropiedadDocumentos.AsNoTracking().Where(x => x.PropiedadId == id && x.DeletedAt == null).Select(x => new PropiedadDocumentoResponse(x.Id, x.PropiedadId, x.NombreArchivo, x.RutaArchivo, x.TipoContenido, x.CloudinaryPublicId, x.CloudinaryResourceType, x.CreatedAt)).ToArrayAsync(cancellationToken));
     }
 
     [HttpGet("documentos/{documentoId:guid}/descargar")]
+    [HasPermission("propiedades.ver")]
     public async Task<ActionResult> DescargarDocumento(Guid documentoId, CancellationToken cancellationToken)
     {
         var doc = await dbContext.PropiedadDocumentos.AsNoTracking().FirstOrDefaultAsync(x => x.Id == documentoId && x.DeletedAt == null, cancellationToken);
@@ -286,6 +300,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpDelete("documentos/{documentoId:guid}")]
+    [HasPermission("propiedades.editar")]
     public async Task<IActionResult> DeleteDocumento(Guid documentoId, CancellationToken cancellationToken)
     {
         var doc = await dbContext.PropiedadDocumentos.FirstOrDefaultAsync(x => x.Id == documentoId && x.DeletedAt == null, cancellationToken);
@@ -299,6 +314,7 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpPost("{id:guid}/fotografias")]
+    [HasPermission("imagenes_propiedad.crear")]
     public async Task<ActionResult<PropiedadFotografiaResponse>> AddFoto(Guid id, [FromForm] PropiedadFotografiaUploadRequest request, CancellationToken cancellationToken)
     {
         var fileValidation = ValidateFile(request.Archivo, ImageTypes, "Solo se permiten imágenes.");
@@ -354,12 +370,14 @@ public sealed class PropiedadesController(AppDbContext dbContext, ICloudinarySto
     }
 
     [HttpGet("{id:guid}/fotografias")]
+    [HasPermission("imagenes_propiedad.ver")]
     public async Task<ActionResult<IReadOnlyCollection<PropiedadFotografiaResponse>>> GetFotos(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await dbContext.PropiedadImagenes.AsNoTracking().Where(x => x.PropiedadId == id && x.DeletedAt == null).Select(x => new PropiedadFotografiaResponse(x.Id, x.PropiedadId, x.NombreArchivo, x.RutaArchivo, null, x.Descripcion, x.EsPrincipal, x.CloudinaryPublicId, x.CloudinaryResourceType, x.CreatedAt)).ToArrayAsync(cancellationToken));
     }
 
     [HttpDelete("fotografias/{fotoId:guid}")]
+    [HasPermission("imagenes_propiedad.eliminar")]
     public async Task<IActionResult> DeleteFoto(Guid fotoId, CancellationToken cancellationToken)
     {
         var foto = await dbContext.PropiedadImagenes.FirstOrDefaultAsync(x => x.Id == fotoId && x.DeletedAt == null, cancellationToken);

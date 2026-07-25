@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Proyectos;
@@ -15,6 +16,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class TareasController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet("{id:guid}")]
+    [HasPermission("tareas.ver")]
     public async Task<ActionResult<TareaResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var tarea = await BaseTareaQuery().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -22,6 +24,7 @@ public sealed class TareasController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("tareas.editar")]
     public async Task<ActionResult<TareaResponse>> Update(Guid id, UpdateTareaRequest request, CancellationToken cancellationToken)
     {
         var tarea = await dbContext.ProyectoTareas.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -55,6 +58,7 @@ public sealed class TareasController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [HasPermission("tareas.eliminar")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var tarea = await dbContext.ProyectoTareas.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -67,6 +71,7 @@ public sealed class TareasController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{tareaId:guid}/responsables")]
+    [HasPermission("tareas.ver")]
     public async Task<ActionResult<IReadOnlyCollection<TareaResponsableResponse>>> GetResponsables(Guid tareaId, CancellationToken cancellationToken)
     {
         var exists = await dbContext.ProyectoTareas.AnyAsync(x => x.Id == tareaId && x.DeletedAt == null, cancellationToken);
@@ -83,6 +88,7 @@ public sealed class TareasController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost("{tareaId:guid}/responsables")]
+    [HasPermission("tareas.asignar_responsables")]
     public async Task<ActionResult<IReadOnlyCollection<TareaResponsableResponse>>> AddResponsables(Guid tareaId, AsignarResponsablesRequest request, CancellationToken cancellationToken)
     {
         var tareaExists = await dbContext.ProyectoTareas.AnyAsync(x => x.Id == tareaId && x.DeletedAt == null, cancellationToken);
@@ -114,6 +120,7 @@ public sealed class TareasController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpDelete("{tareaId:guid}/responsables/{empleadoId:guid}")]
+    [HasPermission("tareas.asignar_responsables")]
     public async Task<IActionResult> DeleteResponsable(Guid tareaId, Guid empleadoId, CancellationToken cancellationToken)
     {
         var responsable = await dbContext.ProyectoTareaResponsables.FirstOrDefaultAsync(x => x.ProyectoTareaId == tareaId && x.EmpleadoId == empleadoId, cancellationToken);

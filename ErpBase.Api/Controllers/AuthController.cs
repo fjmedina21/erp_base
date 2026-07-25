@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Auth;
@@ -151,7 +152,7 @@ public sealed class AuthController(
 
         if (environment.IsDevelopment())
         {
-            return Ok(new ForgotPasswordResponse(genericMessage, resetToken, resetUrl, expiresAt));
+            return Ok(new ForgotPasswordResponse(genericMessage, resetToken, resetUrl, FormatLocalDateTime(expiresAt)));
         }
 
         return Ok(new ForgotPasswordResponse(genericMessage));
@@ -231,6 +232,9 @@ public sealed class AuthController(
 
         return Ok(new UserProfileResponse(user.Id, user.Email, user.Activo, user.Bloqueado, roles, permissions));
     }
+
+    private static string FormatLocalDateTime(DateTime value) =>
+        value.ToLocalTime().ToString("dd/MM/yyyy hh:mm tt", CultureInfo.GetCultureInfo("es-DO"));
 }
 
 public sealed record UserProfileResponse(

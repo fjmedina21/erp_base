@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.Options;
 using ErpBase.Api.Services.AuthService;
@@ -8,6 +9,7 @@ using ErpBase.Api.Services.JwtService;
 using ErpBase.Api.Services.PasswordReset;
 using ErpBase.Api.Services.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Microsoft.IdentityModel.Tokens;
@@ -62,7 +64,27 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection(PasswordResetOptions.SectionName));
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
-builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection(SmtpEmailOptions.SectionName));
+builder.Services.Configure<SmtpEmailOptions>(options =>
+{
+    builder.Configuration.GetSection(SmtpEmailOptions.SectionName).Bind(options);
+    options.Host = GetConfiguredValue(builder.Configuration, options.Host, "Email:Smtp:Host", "Email__Smtp__Host", "EMAIL_SMTP_HOST");
+    options.UserName = GetConfiguredValue(builder.Configuration, options.UserName, "Email:Smtp:UserName", "Email__Smtp__UserName", "EMAIL_SMTP_USERNAME");
+    options.Password = GetConfiguredValue(builder.Configuration, options.Password, "Email:Smtp:Password", "Email__Smtp__Password", "EMAIL_SMTP_PASSWORD");
+    options.FromEmail = GetConfiguredValue(builder.Configuration, options.FromEmail, "Email:Smtp:FromEmail", "Email__Smtp__FromEmail", "EMAIL_SMTP_FROM_EMAIL");
+    options.FromName = GetConfiguredValue(builder.Configuration, options.FromName, "Email:Smtp:FromName", "Email__Smtp__FromName", "EMAIL_SMTP_FROM_NAME");
+
+    var port = GetConfiguredValue(builder.Configuration, options.Port.ToString(), "Email:Smtp:Port", "Email__Smtp__Port", "EMAIL_SMTP_PORT");
+    if (int.TryParse(port, out var parsedPort))
+    {
+        options.Port = parsedPort;
+    }
+
+    var enableSsl = GetConfiguredValue(builder.Configuration, options.EnableSsl.ToString(), "Email:Smtp:EnableSsl", "Email__Smtp__EnableSsl", "EMAIL_SMTP_ENABLE_SSL");
+    if (bool.TryParse(enableSsl, out var parsedEnableSsl))
+    {
+        options.EnableSsl = parsedEnableSsl;
+    }
+});
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -72,6 +94,8 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();
 builder.Services.AddScoped<IPasswordResetEmailSender, SmtpPasswordResetEmailSender>();
 builder.Services.AddHttpClient<ICloudinaryStorageService, CloudinaryStorageService>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("JWT configuration is missing.");
@@ -89,6 +113,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtOptions.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
             ClockSkew = TimeSpan.FromMinutes(2)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    statusCode = StatusCodes.Status401Unauthorized,
+                    message = "No autenticado. Debe enviar un token valido."
+                });
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    statusCode = StatusCodes.Status403Forbidden,
+                    message = "No autorizado. No tiene permisos para realizar esta accion."
+                });
+            }
         };
     });
 
@@ -195,4 +245,17 @@ static void SetIfMissing(string targetKey, string sourceKey)
     {
         Environment.SetEnvironmentVariable(targetKey, sourceValue);
     }
+}
+
+static string GetConfiguredValue(IConfiguration configuration, string currentValue, params string[] keys)
+{
+    if (!string.IsNullOrWhiteSpace(currentValue)) return currentValue;
+
+    foreach (var key in keys)
+    {
+        var value = configuration[key] ?? Environment.GetEnvironmentVariable(key);
+        if (!string.IsNullOrWhiteSpace(value)) return value;
+    }
+
+    return currentValue;
 }

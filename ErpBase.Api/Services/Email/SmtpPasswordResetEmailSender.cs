@@ -43,12 +43,15 @@ public sealed class SmtpPasswordResetEmailSender(IOptions<SmtpEmailOptions> opti
         return smtpOptions;
     }
 
-    private static string BuildBody(string resetUrl, DateTime expiresAt) =>
+    private static string BuildBody(string resetUrl, DateTime expiresAt)
+    {
+        return
         $$"""
         <p>Hola,</p>
         <p>Recibimos una solicitud para restablecer tu contraseña en ERP Base.</p>
         <p><a href="{{WebUtility.HtmlEncode(resetUrl)}}">Restablecer contraseña</a></p>
-        <p>Este enlace expira el {{expiresAt:yyyy-MM-dd HH:mm}}.</p>
+        <p>Este enlace expira el {{expiresAt.ToLocalTime():dd/MM/yyyy hh:mm tt}}.</p>
         <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
         """;
+    }
 }

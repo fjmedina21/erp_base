@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Clientes;
@@ -16,6 +17,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet("tipos")]
+    [HasPermission("tipos_cliente.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposCliente(CancellationToken cancellationToken)
     {
@@ -28,6 +30,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("tipos-documento-identidad")]
+    [HasPermission("tipos_documento.ver")]
     [Tags("Catalog")]
     public async Task<ActionResult<IReadOnlyCollection<CatalogoBasicoResponse>>> GetTiposDocumentoIdentidad(CancellationToken cancellationToken)
     {
@@ -40,6 +43,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost]
+    [HasPermission("clientes.crear")]
     public async Task<ActionResult<ClienteResponse>> Create(CreateClienteRequest request, CancellationToken cancellationToken)
     {
         var tipoCliente = await FindTipoCliente(request.TipoClienteId, cancellationToken);
@@ -107,6 +111,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("clientes.editar")]
     public async Task<ActionResult<ClienteResponse>> Update(Guid id, UpdateClienteRequest request, CancellationToken cancellationToken)
     {
         var cliente = await dbContext.Clientes
@@ -180,6 +185,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet]
+    [HasPermission("clientes.ver")]
     public async Task<ActionResult<ClienteSearchResponse>> GetAll(
         [FromQuery] string? search,
         [FromQuery] string? nombre,
@@ -251,6 +257,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("clientes.ver")]
     public async Task<ActionResult<ClienteResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var cliente = await dbContext.Clientes
@@ -263,6 +270,7 @@ public sealed class ClientesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{id:guid}/historial")]
+    [HasPermission("auditoria.ver")]
     public async Task<ActionResult<ClienteHistorialResponse>> GetHistorial(Guid id, CancellationToken cancellationToken)
     {
         var cliente = await dbContext.Clientes

@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ErpBase.Api.Options;
 using Microsoft.Extensions.Options;
 
@@ -18,9 +19,11 @@ public sealed class CloudinaryStorageService(HttpClient httpClient, IOptions<Clo
         var cloudinaryOptions = GetConfiguredOptions();
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
         var effectiveFolder = CombineFolder(cloudinaryOptions.Folder, folder);
+        var publicId = BuildPublicId(file.FileName, resourceType);
         var parameters = new SortedDictionary<string, string>
         {
             ["folder"] = effectiveFolder,
+            ["public_id"] = publicId,
             ["timestamp"] = timestamp
         };
 
@@ -38,6 +41,7 @@ public sealed class CloudinaryStorageService(HttpClient httpClient, IOptions<Clo
             ["api_key"] = cloudinaryOptions.ApiKey,
             ["timestamp"] = timestamp,
             ["folder"] = effectiveFolder,
+            ["public_id"] = publicId,
             ["signature"] = Sign(parameters, cloudinaryOptions.ApiSecret)
         });
         form.Add(fileContent, "file", file.FileName);
@@ -100,6 +104,24 @@ public sealed class CloudinaryStorageService(HttpClient httpClient, IOptions<Clo
 
     private static string ToCloudinaryResourceType(CloudinaryResourceType resourceType) =>
         resourceType == CloudinaryResourceType.Image ? "image" : "raw";
+
+    private static string BuildPublicId(string fileName, CloudinaryResourceType resourceType)
+    {
+        var extension = resourceType == CloudinaryResourceType.Raw
+            ? Path.GetExtension(fileName).Trim().ToLowerInvariant()
+            : string.Empty;
+
+        var name = Path.GetFileNameWithoutExtension(fileName).Trim().ToLowerInvariant();
+        name = Regex.Replace(name, @"[^a-z0-9_-]+", "-", RegexOptions.CultureInvariant);
+        name = name.Trim('-');
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = "archivo";
+        }
+
+        return $"{name}-{Guid.NewGuid():N}{extension}";
+    }
 
     private static string CombineFolder(string rootFolder, string folder)
     {

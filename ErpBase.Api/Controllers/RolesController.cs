@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Roles;
 using ErpBase.Api.Entities;
@@ -14,6 +15,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class RolesController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
+    [HasPermission("roles.ver")]
     public async Task<ActionResult<IReadOnlyCollection<RoleResponse>>> GetAll(CancellationToken cancellationToken)
     {
         var roles = await dbContext.Roles
@@ -33,7 +35,38 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
         return Ok(roles);
     }
 
+    [HttpGet("permissions")]
+    [HasPermission("permisos.ver")]
+    public async Task<ActionResult<IReadOnlyCollection<PermissionResponse>>> GetPermissions(
+        [FromQuery] string? modulo,
+        CancellationToken cancellationToken)
+    {
+        var moduleFilter = NormalizeModuleFilter(modulo);
+        var query = dbContext.Permissions
+            .AsNoTracking()
+            .Where(x => x.DeletedAt == null);
+
+        if (moduleFilter is not null)
+        {
+            query = query.Where(x => x.Codigo.ToLower().StartsWith($"{moduleFilter}."));
+        }
+
+        var permissions = await query
+            .OrderBy(x => x.Codigo)
+            .Select(x => new PermissionResponse(
+                x.Id,
+                x.Codigo,
+                GetPermissionModule(x.Codigo),
+                x.Nombre,
+                x.Descripcion,
+                x.CreatedAt))
+            .ToArrayAsync(cancellationToken);
+
+        return Ok(permissions);
+    }
+
     [HttpPost]
+    [HasPermission("roles.crear")]
     public async Task<ActionResult<RoleResponse>> Create(CreateRoleRequest request, CancellationToken cancellationToken)
     {
         var name = request.Nombre.Trim();
@@ -66,6 +99,7 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}/permissions")]
+    [HasPermission("permisos.asignar")]
     public async Task<IActionResult> AssignPermissions(Guid id, AssignPermissionsRequest request, CancellationToken cancellationToken)
     {
         var role = await dbContext.Roles
@@ -106,6 +140,7 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost("permissions")]
+    [HasPermission("permisos.asignar")]
     public async Task<ActionResult> CreatePermission(CreatePermissionRequest request, CancellationToken cancellationToken)
     {
         var code = request.Codigo.Trim().ToUpperInvariant();
@@ -133,13 +168,25 @@ public sealed class RolesController(AppDbContext dbContext) : ControllerBase
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return Created("api/roles/permissions", new
-        {
+        return Created("api/roles/permissions", new PermissionResponse(
             permission.Id,
             permission.Codigo,
+            GetPermissionModule(permission.Codigo),
             permission.Nombre,
-            permission.Descripcion
-        });
+            permission.Descripcion,
+            permission.CreatedAt));
+    }
+
+    private static string? NormalizeModuleFilter(string? value)
+    {
+        var normalized = value?.Trim().ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized.TrimEnd('.');
+    }
+
+    private static string GetPermissionModule(string code)
+    {
+        var separatorIndex = code.IndexOf('.', StringComparison.Ordinal);
+        return separatorIndex <= 0 ? code : code[..separatorIndex];
     }
 
     private Guid? GetCurrentUserId()

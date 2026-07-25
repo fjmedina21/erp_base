@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ErpBase.Api.Authorization;
 using ErpBase.Api.Data;
 using ErpBase.Api.DTOs.Catalogos;
 using ErpBase.Api.DTOs.Proyectos;
@@ -15,6 +16,7 @@ namespace ErpBase.Api.Controllers;
 public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
+    [HasPermission("proyectos.ver")]
     public async Task<ActionResult<IReadOnlyCollection<ProyectoResponse>>> GetAll([FromQuery] Guid? estadoId, [FromQuery] Guid? clienteId, CancellationToken cancellationToken)
     {
         var query = BaseProyectoQuery();
@@ -26,6 +28,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [HasPermission("proyectos.ver")]
     public async Task<ActionResult<ProyectoResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var proyecto = await BaseProyectoQuery().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -33,6 +36,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost]
+    [HasPermission("proyectos.crear")]
     public async Task<ActionResult<ProyectoResponse>> Create(CreateProyectoRequest request, CancellationToken cancellationToken)
     {
         var validation = await ValidateProyectoReferences(request.ClienteId, null, cancellationToken);
@@ -66,6 +70,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [HasPermission("proyectos.editar")]
     public async Task<ActionResult<ProyectoResponse>> Update(Guid id, UpdateProyectoRequest request, CancellationToken cancellationToken)
     {
         var proyecto = await dbContext.Proyectos.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -99,6 +104,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [HasPermission("proyectos.eliminar")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var proyecto = await dbContext.Proyectos.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
@@ -111,6 +117,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpGet("{proyectoId:guid}/fases")]
+    [HasPermission("fases.ver")]
     public async Task<ActionResult<IReadOnlyCollection<FaseResponse>>> GetFases(Guid proyectoId, CancellationToken cancellationToken)
     {
         var exists = await dbContext.Proyectos.AnyAsync(x => x.Id == proyectoId && x.DeletedAt == null, cancellationToken);
@@ -125,6 +132,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
     }
 
     [HttpPost("{proyectoId:guid}/fases")]
+    [HasPermission("fases.crear")]
     public async Task<ActionResult<FaseResponse>> CreateFase(Guid proyectoId, CreateFaseRequest request, CancellationToken cancellationToken)
     {
         var exists = await dbContext.Proyectos.AnyAsync(x => x.Id == proyectoId && x.DeletedAt == null, cancellationToken);
