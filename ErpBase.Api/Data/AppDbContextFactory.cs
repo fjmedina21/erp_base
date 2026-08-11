@@ -20,8 +20,14 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
             .AddEnvironmentVariables()
             .Build();
 
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Database connection string is missing. Configure ConnectionStrings__DefaultConnection.");
+        }
+
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+            .UseNpgsql(connectionString)
             .Options;
 
         return new AppDbContext(options);

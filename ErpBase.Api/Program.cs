@@ -87,7 +87,7 @@ builder.Services.Configure<SmtpEmailOptions>(options =>
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(GetRequiredConnectionString(builder.Configuration)));
 
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -245,6 +245,17 @@ static void SetIfMissing(string targetKey, string sourceKey)
     {
         Environment.SetEnvironmentVariable(targetKey, sourceValue);
     }
+}
+
+static string GetRequiredConnectionString(IConfiguration configuration)
+{
+    var connectionString = configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        return connectionString;
+    }
+
+    throw new InvalidOperationException("Database connection string is missing. Configure ConnectionStrings__DefaultConnection.");
 }
 
 static string GetConfiguredValue(IConfiguration configuration, string currentValue, params string[] keys)

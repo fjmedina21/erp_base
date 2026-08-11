@@ -9,8 +9,7 @@ public sealed record CreateProyectoRequest(
     string? Descripcion,
     DateOnly FechaInicio,
     DateOnly FechaFin,
-    DateOnly? FechaProrroga,
-    decimal? PorcentajeAvance);
+    DateOnly? FechaProrroga);
 
 public sealed record UpdateProyectoRequest(
     Guid? ClienteId,
@@ -19,8 +18,7 @@ public sealed record UpdateProyectoRequest(
     string? Descripcion,
     DateOnly? FechaInicio,
     DateOnly? FechaFin,
-    DateOnly? FechaProrroga,
-    decimal? PorcentajeAvance);
+    DateOnly? FechaProrroga);
 
 public sealed record ProyectoResponse(
     Guid Id,
@@ -42,8 +40,7 @@ public sealed record CreateFaseRequest(
     string? Descripcion,
     DateOnly FechaInicio,
     DateOnly FechaFin,
-    DateOnly? FechaProrroga,
-    decimal? PorcentajeAvance);
+    DateOnly? FechaProrroga);
 
 public sealed record UpdateFaseRequest(
     Guid? EstadoFaseId,
@@ -51,8 +48,7 @@ public sealed record UpdateFaseRequest(
     string? Descripcion,
     DateOnly? FechaInicio,
     DateOnly? FechaFin,
-    DateOnly? FechaProrroga,
-    decimal? PorcentajeAvance);
+    DateOnly? FechaProrroga);
 
 public sealed record FaseResponse(
     Guid Id,

@@ -1,33 +1,12 @@
 services:
-  db:
-    image: ${POSTGRES_IMAGE}
-    container_name: ${DB_CONTAINER_NAME}
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${DB_PORT}:5432"
-    volumes:
-      - erp_base_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   api:
-    image: ${API_IMAGE}
-    container_name: ${API_CONTAINER_NAME}
+    image: fjmedina21/erp-base-api:latest
+    container_name: erp-base-api
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
       ASPNETCORE_URLS: ${ASPNETCORE_URLS}
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection}
       Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME}
       Cloudinary__ApiKey: ${CLOUDINARY_API_KEY}
       Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET}
@@ -44,5 +23,13 @@ services:
     ports:
       - "${API_PORT}:8080"
 
-volumes:
-  erp_base_pgdata:
+  web:
+    image: fjmedina21/erp-base-web:latest
+    container_name: erp-base-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: ${WEB_API_URL:-http://localhost:5080/api}
+    ports:
+      - "${WEB_PORT:-8080}:80"

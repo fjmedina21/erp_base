@@ -23,16 +23,22 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
         if (estadoId.HasValue) query = query.Where(x => x.EstadoProyectoId == estadoId.Value);
         if (clienteId.HasValue) query = query.Where(x => x.ClienteId == clienteId.Value);
 
-        var proyectos = await query.OrderByDescending(x => x.CreatedAt).ToArrayAsync(cancellationToken);
-        return Ok(proyectos.Select(ToResponse).ToArray());
+        var ids = await query.OrderByDescending(x => x.CreatedAt).Select(x => x.Id).ToArrayAsync(cancellationToken);
+        var proyectos = new List<ProyectoResponse>();
+        foreach (var id in ids)
+        {
+            proyectos.Add(await LoadProyectoResponse(id, cancellationToken));
+        }
+
+        return Ok(proyectos);
     }
 
     [HttpGet("{id:guid}")]
     [HasPermission("proyectos.ver")]
     public async Task<ActionResult<ProyectoResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var proyecto = await BaseProyectoQuery().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        return proyecto is null ? NotFound() : Ok(ToResponse(proyecto));
+        var exists = await dbContext.Proyectos.AnyAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
+        return exists ? Ok(await LoadProyectoResponse(id, cancellationToken)) : NotFound();
     }
 
     [HttpPost]
@@ -45,8 +51,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
         var estado = await FindEstadoProyecto("Planificado", cancellationToken);
         if (estado is null) return BadRequest(new { message = "No existe el estado de proyecto Planificado." });
 
-        var advance = request.PorcentajeAvance ?? 0;
-        var dateValidation = ValidateSchedule(request.FechaInicio, request.FechaFin, request.FechaProrroga, advance);
+        var dateValidation = ValidateSchedule(request.FechaInicio, request.FechaFin, request.FechaProrroga);
         if (dateValidation is not null) return BadRequest(new { message = dateValidation });
 
         var proyecto = new Proyecto
@@ -60,7 +65,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
             FechaInicio = request.FechaInicio,
             FechaFin = request.FechaFin,
             FechaProrroga = request.FechaProrroga,
-            PorcentajeAvance = advance
+            PorcentajeAvance = 0
         };
 
         dbContext.Proyectos.Add(proyecto);
@@ -84,8 +89,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
         var fechaInicio = request.FechaInicio ?? proyecto.FechaInicio;
         var fechaFin = request.FechaFin ?? proyecto.FechaFin;
         var fechaProrroga = request.FechaProrroga ?? proyecto.FechaProrroga;
-        var advance = request.PorcentajeAvance ?? proyecto.PorcentajeAvance;
-        var dateValidation = ValidateSchedule(fechaInicio, fechaFin, fechaProrroga, advance);
+        var dateValidation = ValidateSchedule(fechaInicio, fechaFin, fechaProrroga);
         if (dateValidation is not null) return BadRequest(new { message = dateValidation });
 
         proyecto.ClienteId = clienteId;
@@ -95,7 +99,6 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
         proyecto.FechaInicio = fechaInicio;
         proyecto.FechaFin = fechaFin;
         proyecto.FechaProrroga = fechaProrroga;
-        proyecto.PorcentajeAvance = advance;
         proyecto.UpdatedAt = DateTime.Now;
 
         dbContext.Auditorias.Add(new Auditoria { RegistroId = id, UserId = GetCurrentUserId(), Accion = "ACTUALIZACION", Entidad = "proyectos" });
@@ -123,12 +126,19 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
         var exists = await dbContext.Proyectos.AnyAsync(x => x.Id == proyectoId && x.DeletedAt == null, cancellationToken);
         if (!exists) return NotFound();
 
-        var fases = await BaseFaseQuery()
+        var faseIds = await BaseFaseQuery()
             .Where(x => x.ProyectoId == proyectoId)
             .OrderBy(x => x.FechaInicio)
+            .Select(x => x.Id)
             .ToArrayAsync(cancellationToken);
 
-        return Ok(fases.Select(ToResponse).ToArray());
+        var fases = new List<FaseResponse>();
+        foreach (var faseId in faseIds)
+        {
+            fases.Add(await LoadFaseResponse(faseId, cancellationToken));
+        }
+
+        return Ok(fases);
     }
 
     [HttpPost("{proyectoId:guid}/fases")]
@@ -141,8 +151,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
         var estado = await FindEstadoFase("Pendiente", cancellationToken);
         if (estado is null) return BadRequest(new { message = "El estado de fase no existe o falta el catálogo Pendiente." });
 
-        var advance = request.PorcentajeAvance ?? 0;
-        var validation = ValidateSchedule(request.FechaInicio, request.FechaFin, request.FechaProrroga, advance);
+        var validation = ValidateSchedule(request.FechaInicio, request.FechaFin, request.FechaProrroga);
         if (validation is not null) return BadRequest(new { message = validation });
 
         var fase = new ProyectoFase
@@ -155,7 +164,7 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
             FechaInicio = request.FechaInicio,
             FechaFin = request.FechaFin,
             FechaProrroga = request.FechaProrroga,
-            PorcentajeAvance = advance
+            PorcentajeAvance = 0
         };
 
         dbContext.ProyectoFases.Add(fase);
@@ -178,13 +187,15 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
     private async Task<ProyectoResponse> LoadProyectoResponse(Guid id, CancellationToken cancellationToken)
     {
         var proyecto = await BaseProyectoQuery().FirstAsync(x => x.Id == id, cancellationToken);
-        return ToResponse(proyecto);
+        var avance = await CalculateProyectoAvance(id, cancellationToken);
+        return ToResponse(proyecto, avance);
     }
 
     private async Task<FaseResponse> LoadFaseResponse(Guid id, CancellationToken cancellationToken)
     {
         var fase = await BaseFaseQuery().FirstAsync(x => x.Id == id, cancellationToken);
-        return ToResponse(fase);
+        var avance = await CalculateFaseAvance(id, cancellationToken);
+        return ToResponse(fase, avance);
     }
 
     private async Task<(string? Error, EstadoProyecto? Estado)> ValidateProyectoReferences(Guid? clienteId, Guid? estadoProyectoId, CancellationToken cancellationToken)
@@ -215,19 +226,50 @@ public sealed class ProyectosController(AppDbContext dbContext) : ControllerBase
         return $"{prefix}{next:0000}";
     }
 
-    private static string? ValidateSchedule(DateOnly fechaInicio, DateOnly fechaFin, DateOnly? fechaProrroga, decimal porcentajeAvance)
+    private static string? ValidateSchedule(DateOnly fechaInicio, DateOnly fechaFin, DateOnly? fechaProrroga)
     {
         if (fechaFin < fechaInicio) return "La fecha fin debe ser mayor o igual a la fecha inicio.";
         if (fechaProrroga.HasValue && fechaProrroga.Value < fechaFin) return "La fecha prórroga debe ser mayor o igual a la fecha fin.";
-        if (porcentajeAvance < 0 || porcentajeAvance > 100) return "El porcentaje de avance debe estar entre 0 y 100.";
         return null;
     }
 
-    private static ProyectoResponse ToResponse(Proyecto x) =>
-        new(x.Id, x.Codigo, x.ClienteId, FormatCliente(x.Cliente), new CatalogoBasicoResponse(x.EstadoProyectoId, x.EstadoProyecto.Nombre), x.Nombre, x.Descripcion, x.FechaInicio, x.FechaFin, x.FechaProrroga, x.PorcentajeAvance, x.CreatedAt, x.UpdatedAt);
+    private async Task<decimal> CalculateProyectoAvance(Guid proyectoId, CancellationToken cancellationToken)
+    {
+        var fases = await dbContext.ProyectoFases
+            .AsNoTracking()
+            .Include(x => x.EstadoFase)
+            .Where(x => x.ProyectoId == proyectoId && x.DeletedAt == null)
+            .Select(x => x.EstadoFase.Nombre)
+            .ToArrayAsync(cancellationToken);
 
-    private static FaseResponse ToResponse(ProyectoFase x) =>
-        new(x.Id, x.ProyectoId, new CatalogoBasicoResponse(x.EstadoFaseId, x.EstadoFase.Nombre), x.Nombre, x.Descripcion, x.FechaInicio, x.FechaFin, x.FechaProrroga, x.PorcentajeAvance, x.CreatedAt, x.UpdatedAt);
+        return CalculateCompletionPercentage(fases, "Finalizada");
+    }
+
+    private async Task<decimal> CalculateFaseAvance(Guid faseId, CancellationToken cancellationToken)
+    {
+        var tareas = await dbContext.ProyectoTareas
+            .AsNoTracking()
+            .Include(x => x.EstadoTarea)
+            .Where(x => x.ProyectoFaseId == faseId && x.DeletedAt == null)
+            .Select(x => x.EstadoTarea.Nombre)
+            .ToArrayAsync(cancellationToken);
+
+        return CalculateCompletionPercentage(tareas, "Completada");
+    }
+
+    private static decimal CalculateCompletionPercentage(IReadOnlyCollection<string> states, string completedState)
+    {
+        if (states.Count == 0) return 0;
+
+        var completed = states.Count(x => string.Equals(x, completedState, StringComparison.OrdinalIgnoreCase));
+        return Math.Round(completed * 100m / states.Count, 2);
+    }
+
+    private static ProyectoResponse ToResponse(Proyecto x, decimal porcentajeAvance) =>
+        new(x.Id, x.Codigo, x.ClienteId, FormatCliente(x.Cliente), new CatalogoBasicoResponse(x.EstadoProyectoId, x.EstadoProyecto.Nombre), x.Nombre, x.Descripcion, x.FechaInicio, x.FechaFin, x.FechaProrroga, porcentajeAvance, x.CreatedAt, x.UpdatedAt);
+
+    private static FaseResponse ToResponse(ProyectoFase x, decimal porcentajeAvance) =>
+        new(x.Id, x.ProyectoId, new CatalogoBasicoResponse(x.EstadoFaseId, x.EstadoFase.Nombre), x.Nombre, x.Descripcion, x.FechaInicio, x.FechaFin, x.FechaProrroga, porcentajeAvance, x.CreatedAt, x.UpdatedAt);
 
     private static string? FormatCliente(Cliente? cliente)
     {
